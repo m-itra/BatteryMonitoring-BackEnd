@@ -1,0 +1,123 @@
+
+services:
+  # База данных пользователей
+  user-db:
+    image: postgres:15
+    container_name: user-db
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+      - ./databases/user-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d userdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - battery-network
+
+  # База данных батареи
+  battery-db:
+    image: postgres:15
+    container_name: battery-db
+    environment:
+      POSTGRES_DB: batterydb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - battery-db-data:/var/lib/postgresql/data
+      - ./databases/battery-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d batterydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - battery-network
+
+
+  # UserService
+  user-service:
+    build: ../UserService
+    container_name: user-service
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://admin:password@user-db:5432/userdb
+      JWT_SECRET: my-secret-key-change-in-production
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_HOURS: 24
+    depends_on:
+      user-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - battery-network
+  
+  # ProcessingService
+  processing-service:
+    build: ../ProcessingService
+    container_name: processing-service
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
+    depends_on:
+      battery-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - battery-network
+
+    # AnalyticsService
+  analytics-service:
+    build: ../AnalyticsService
+    container_name: analytics-service
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
+      USER_SERVICE_URL: http://user-service:8001
+    depends_on:
+      battery-db:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - battery-network
+
+  # API Gateway
+  gateway:
+    build: ../Gateway
+    container_name: gateway
+    ports:
+      - "8000:8000"
+    environment:
+      JWT_SECRET: my-secret-key-change-in-production
+      JWT_ALGORITHM: HS256
+      USER_SERVICE_URL: http://user-service:8001
+      PROCESSING_SERVICE_URL: http://processing-service:8002
+      ANALYTICS_SERVICE_URL: http://analytics-service:8003
+    depends_on:
+      - user-service
+      - processing-service
+      - analytics-service
+    restart: unless-stopped
+    networks:
+      - battery-network
+
+volumes:
+  user-db-data:
+  battery-db-data:
+
+networks:
+  battery-network:
+    driver: bridge
