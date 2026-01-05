@@ -11,3 +11,4 @@ ENV_PATH = PARENT_DIR / "infrastructure" / ".env"
 load_dotenv(ENV_PATH)
 
 BATTERY_DATABASE_URL = os.getenv("BATTERY_DATABASE_URL")
+USER_SERVICE_GRPC_URL = os.getenv("USER_SERVICE_GRPC_URL")
