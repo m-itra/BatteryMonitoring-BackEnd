@@ -22,7 +22,6 @@ async def submit_battery_log(
     Пример 2 использования gRPC: ProcessingService → UserService
     Валидация существования пользователя перед созданием устройства
     """
-    print("aboab")
     try:
         # ПРИМЕР 2: Валидация пользователя через gRPC
         user_validation = await validate_user_via_grpc(x_user_id)

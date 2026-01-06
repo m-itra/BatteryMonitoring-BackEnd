@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import threading
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, health, analytics_service_route
+from app.routes import auth, health
 from app.grpc_server import serve as serve_grpc
 
 app = FastAPI(title="UserService", version="1.0.0")
@@ -20,7 +20,6 @@ def start_grpc_server():
 
 app.include_router(auth.router)
 app.include_router(health.router)
-app.include_router(analytics_service_route.router)
 
 if __name__ == "__main__":
     import uvicorn
