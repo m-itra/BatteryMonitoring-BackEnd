@@ -22,10 +22,7 @@ async def register(data: RegisterRequest):
 
 
 @router.post("/api/auth/login", response_model=LoginResponse, tags=["Auth"])
-async def login(data: LoginRequest, response: Response):
-    """
-    Вход пользователя
-    """
+async def login(data: LoginRequest):
     service_response = await proxy_request(
         f"{USER_SERVICE_URL}/login",
         "POST",
@@ -35,15 +32,19 @@ async def login(data: LoginRequest, response: Response):
 
     result = service_response.json()
 
-    # Устанавливаем JWT в httpOnly cookie
+    response = JSONResponse(
+        content=result,
+        status_code=service_response.status_code
+    )
+
     if service_response.status_code == 200 and "access_token" in result:
         response.set_cookie(
             key="access_token",
             value=result["access_token"],
             httponly=True,
-            secure=False,  # Для продакшена поставить True (требует HTTPS)
+            secure=False, # В продакшене нужно True поспать
             samesite="lax",
             max_age=24 * 60 * 60  # 24 часа
         )
 
-    return JSONResponse(content=result, status_code=service_response.status_code)
+    return response

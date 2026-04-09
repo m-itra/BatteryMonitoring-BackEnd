@@ -8,3 +8,7 @@ pydantic[email]==2.5.0
 python-multipart==0.0.6
 grpcio==1.60.0
 grpcio-tools==1.60.0
+
+pytest
+pytest-cov
+httpx==0.25.2
