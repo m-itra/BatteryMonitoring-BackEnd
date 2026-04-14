@@ -60,6 +60,7 @@ async def submit_battery_log(
 
             return SubmitResponse(
                 status="success",
+                message="Battery log processed",
                 device_id=data.device_id,
                 cycle_created=cycle_created
             )

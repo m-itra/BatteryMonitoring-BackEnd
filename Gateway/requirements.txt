@@ -5,6 +5,7 @@ httpx==0.25.1
 grpcio==1.60.0
 grpcio-tools==1.60.0
 pydantic[email]==2.5.0
+pydantic-settings==2.1.0
 
 pytest
 pytest-asyncio

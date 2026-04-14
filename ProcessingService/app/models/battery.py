@@ -31,5 +31,6 @@ class BatteryLogRequest(BaseModel):
 
 class SubmitResponse(BaseModel):
     status: str
+    message: str
     device_id: str
     cycle_created: bool = False
