@@ -1,5 +1,7 @@
-from app.db.connection import get_db_connection, get_db_cursor
 from fastapi import APIRouter, HTTPException
+from sqlalchemy import text
+
+from app.db.connection import get_db_session
 
 router = APIRouter()
 
@@ -14,13 +16,10 @@ def root():
 
 
 @router.get("/health")
-def health_check():
-    """Health check endpoint"""
+async def health_check():
     try:
-        with get_db_connection() as conn:
-            with get_db_cursor(conn) as cur:
-                cur.execute("SELECT 1")
-                cur.fetchone()
+        async with get_db_session() as session:
+            await session.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Database connection failed: {str(e)}")
