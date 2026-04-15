@@ -1,37 +1,39 @@
-from app.db.connection import get_db_cursor
+from typing import Optional
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models import Device
 
 
-def create_device(conn, device_id: str, device_name: str, user_id: str):
-    with get_db_cursor(conn) as cur:
-        cur.execute(
-            """
-            INSERT INTO devices (device_id, user_id, device_name, last_seen)
-            VALUES (%s, %s, %s, NOW())
-            """,
-            (device_id, user_id, device_name)
-        )
+def parse_uuid(value: str) -> Optional[UUID]:
+    try:
+        return UUID(value)
+    except (TypeError, ValueError):
+        return None
 
 
-def get_device_by_id(conn, device_id: str):
-    """
-    Проверяет, существует ли устройство с указанным device_id в базе.
+async def create_device(session: AsyncSession, device_id: str, device_name: str, user_id: str):
+    device = Device(
+        device_id=UUID(device_id),
+        user_id=UUID(user_id),
+        device_name=device_name,
+    )
+    session.add(device)
+    await session.flush()
 
-    Args:
-        conn: соединение с базой данных
-        device_id: идентификатор устройства
 
-    Returns:
-        dict с данными устройства, если найдено, иначе None
-    """
-    query = "SELECT * FROM devices WHERE device_id = %s"
-    cursor = conn.cursor()
-    cursor.execute(query, (device_id,))
-    result = cursor.fetchone()
-    cursor.close()
-    if result:
-        return {
-            "device_id": result[0],
-            "user_id": result[1],
-            "device_name": result[2],
-        }
-    return None
+async def get_device_by_id(session: AsyncSession, device_id: str):
+    parsed_device_id = parse_uuid(device_id)
+    if parsed_device_id is None:
+        return None
+
+    device = await session.get(Device, parsed_device_id)
+    if device is None:
+        return None
+
+    return {
+        "device_id": str(device.device_id),
+        "user_id": str(device.user_id),
+        "device_name": device.device_name,
+    }
