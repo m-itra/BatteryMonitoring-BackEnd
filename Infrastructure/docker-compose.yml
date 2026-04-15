@@ -12,7 +12,6 @@ services:
       - "5432:5432"
     volumes:
       - user-db-data:/var/lib/postgresql/data
-      - ./databases/user-db/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d userdb"]
       interval: 10s
@@ -33,12 +32,45 @@ services:
       - "5433:5432"
     volumes:
       - battery-db-data:/var/lib/postgresql/data
-      - ./databases/battery-db/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d batterydb"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - battery-network
+
+  user-db-migrations:
+    image: python:3.11-slim
+    container_name: user-db-migrations
+    working_dir: /workspace/Infrastructure
+    volumes:
+      - ..:/workspace
+    environment:
+      USER_DATABASE_URL: postgresql://admin:password@user-db:5432/userdb
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+             alembic -c migrations/user-db/alembic.ini upgrade head"
+    depends_on:
+      user-db:
+        condition: service_healthy
+    networks:
+      - battery-network
+
+  battery-db-migrations:
+    image: python:3.11-slim
+    container_name: battery-db-migrations
+    working_dir: /workspace/Infrastructure
+    volumes:
+      - ..:/workspace
+    environment:
+      BATTERY_DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+             alembic -c migrations/battery-db/alembic.ini upgrade head"
+    depends_on:
+      battery-db:
+        condition: service_healthy
     networks:
       - battery-network
 
@@ -55,8 +87,8 @@ services:
       JWT_ALGORITHM: HS256
       JWT_EXPIRATION_HOURS: 24
     depends_on:
-      user-db:
-        condition: service_healthy
+      user-db-migrations:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - battery-network
@@ -70,8 +102,8 @@ services:
     environment:
       DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
     depends_on:
-      battery-db:
-        condition: service_healthy
+      battery-db-migrations:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - battery-network
@@ -86,8 +118,8 @@ services:
       DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
       USER_SERVICE_URL: http://user-service:8001
     depends_on:
-      battery-db:
-        condition: service_healthy
+      battery-db-migrations:
+        condition: service_completed_successfully
       user-service:
         condition: service_started
     restart: unless-stopped

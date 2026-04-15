@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -13,12 +13,35 @@ class Base(DeclarativeBase):
 
 class Device(Base):
     __tablename__ = "devices"
+    __table_args__ = (
+        Index("idx_devices_user_id", "user_id"),
+    )
 
     device_id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), nullable=False)
-    device_name: Mapped[Optional[str]] = mapped_column(String(255))
+    device_name: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        server_default=text("'Новое устройство'"),
+    )
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, server_default=text("NOW()"))
     last_seen: Mapped[Optional[datetime]] = mapped_column(DateTime, server_default=text("NOW()"))
+
+
+class BatteryCurrentCycle(Base):
+    __tablename__ = "battery_current_cycles"
+
+    device_id: Mapped[UUID] = mapped_column(
+        PostgresUUID(as_uuid=True),
+        ForeignKey("devices.device_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), nullable=False)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    last_update: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    discharge_start_level: Mapped[Optional[int]] = mapped_column(Integer)
+    current_level: Mapped[Optional[int]] = mapped_column(Integer)
+    is_charging: Mapped[Optional[bool]] = mapped_column(Boolean)
+    state: Mapped[Optional[str]] = mapped_column(String(20))
 
 
 class BatteryCycle(Base):
@@ -47,3 +70,9 @@ class BatteryCycle(Base):
     avg_discharge_rate: Mapped[Optional[float]] = mapped_column(Float)
     avg_charge_rate: Mapped[Optional[float]] = mapped_column(Float)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, server_default=text("NOW()"))
+
+    __table_args__ = (
+        Index("idx_cycles_user_id", "user_id"),
+        Index("idx_cycles_device_id", "device_id"),
+        Index("idx_cycles_completed_at", completed_at.desc()),
+    )
