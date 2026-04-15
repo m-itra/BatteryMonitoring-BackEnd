@@ -128,6 +128,15 @@ class TestGetCycles:
         response = client.get("/api/analytics/cycles", headers=AUTH_HEADER)
         assert response.status_code == 422
 
+    @pytest.mark.parametrize("limit", [0, 201])
+    def test_invalid_limit_returns_422(self, client, limit):
+        response = client.get(
+            "/api/analytics/cycles",
+            params={"device_id": DEVICE_ID, "limit": limit},
+            headers=AUTH_HEADER,
+        )
+        assert response.status_code == 422
+
     def test_no_auth_header_returns_403(self, client):
         response = client.get(
             "/api/analytics/cycles",
@@ -251,6 +260,14 @@ class TestUpdateDevice:
     def test_missing_body_returns_422(self, client):
         response = client.put(
             f"/api/analytics/devices/{DEVICE_ID}",
+            headers=AUTH_HEADER,
+        )
+        assert response.status_code == 422
+
+    def test_blank_device_name_returns_422(self, client):
+        response = client.put(
+            f"/api/analytics/devices/{DEVICE_ID}",
+            json={"device_name": "   "},
             headers=AUTH_HEADER,
         )
         assert response.status_code == 422

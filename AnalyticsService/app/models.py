@@ -1,6 +1,9 @@
-from pydantic import BaseModel
 from datetime import datetime
-from typing import List, Optional
+from typing import Annotated, List, Optional
+
+from pydantic import BaseModel, StringConstraints
+
+NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class DeviceInfo(BaseModel):
@@ -29,7 +32,7 @@ class CycleInfo(BaseModel):
 
 
 class UpdateDeviceRequest(BaseModel):
-    device_name: str
+    device_name: NonEmptyStr
 
 
 class AnalyticsResponse(BaseModel):

@@ -1,5 +1,9 @@
-from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from typing import Annotated, Optional
+
+from pydantic import BaseModel, ConfigDict, StringConstraints
+
+NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
 
 class DeviceInfo(BaseModel):
     device_id: str
@@ -19,4 +23,4 @@ class UpdateDeviceRequest(BaseModel):
         }
     )
 
-    device_name: str
+    device_name: NonEmptyStr

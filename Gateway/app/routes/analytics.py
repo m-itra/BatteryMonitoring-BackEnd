@@ -2,7 +2,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.utils.token_processing import verify_jwt_token
 from app.models.analytics import UpdateDeviceRequest
 from app.utils.proxy_request import proxy_request
-from fastapi import APIRouter, Request, Security
+from fastapi import APIRouter, Query, Request, Security
 from fastapi.responses import JSONResponse
 from app.config import *
 
@@ -37,8 +37,8 @@ async def get_devices(
 @router.get("/api/analytics/cycles", tags=["Analytics"])
 async def get_cycles(
         request: Request,
-        device_id: str,
-        limit: int = 50,
+        device_id: str = Query(..., min_length=1),
+        limit: int = Query(default=50, ge=1, le=200),
         credentials: HTTPAuthorizationCredentials = Security(security)
 ):
     token = credentials.credentials

@@ -28,7 +28,7 @@ def client():
 class TestRegister:
 
     def test_successful_registration_returns_201(self, client):
-        payload = {"email": "user@example.com", "name": "John Doe", "password": "secret"}
+        payload = {"email": "user@example.com", "name": "John Doe", "password": "password123"}
         with patch("app.routes.auth.proxy_request", new_callable=AsyncMock) as mock_proxy:
             mock_proxy.return_value = _mock_response({"message": "created"}, 201)
             response = client.post("/api/auth/register", json=payload)
@@ -37,7 +37,7 @@ class TestRegister:
         assert response.json()["message"] == "created"
 
     def test_proxy_called_with_json_body(self, client):
-        payload = {"email": "user@example.com", "name": "John Doe", "password": "secret"}
+        payload = {"email": "user@example.com", "name": "John Doe", "password": "password123"}
         with patch("app.routes.auth.proxy_request", new_callable=AsyncMock) as mock_proxy:
             mock_proxy.return_value = _mock_response({}, 201)
             client.post("/api/auth/register", json=payload)
@@ -54,10 +54,24 @@ class TestRegister:
             mock_proxy.return_value = _mock_response({"error": "already exists"}, 409)
             response = client.post(
                 "/api/auth/register",
-                json={"email": "dup@example.com", "name": "John Doe", "password": "x"},
+                json={"email": "dup@example.com", "name": "John Doe", "password": "password123"},
             )
 
         assert response.status_code == 409
+
+    def test_blank_name_returns_422(self, client):
+        response = client.post(
+            "/api/auth/register",
+            json={"email": "a@b.com", "name": "   ", "password": "password123"},
+        )
+        assert response.status_code == 422
+
+    def test_short_password_returns_422(self, client):
+        response = client.post(
+            "/api/auth/register",
+            json={"email": "a@b.com", "name": "John", "password": "short"},
+        )
+        assert response.status_code == 422
 
     def test_missing_email_returns_422(self, client):
         response = client.post("/api/auth/register", json={"name": "John", "password": "secret"})
@@ -159,3 +173,10 @@ class TestLogin:
             )
 
         assert "access_token" not in response.cookies
+
+    def test_blank_login_password_returns_422(self, client):
+        response = client.post(
+            "/api/auth/login",
+            json={"email": "u@example.com", "password": "   "},
+        )
+        assert response.status_code == 422

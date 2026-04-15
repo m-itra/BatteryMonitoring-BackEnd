@@ -143,6 +143,41 @@ class TestSubmitBatteryLog:
 
         assert response.status_code == 400
 
+    @pytest.mark.parametrize("battery_level", [-1, 101])
+    def test_invalid_battery_level_returns_422(self, client, battery_level):
+        body = {**VALID_BODY, "battery_level": battery_level}
+        response = client.post(
+            "/api/battery/submit",
+            json=body,
+            headers=AUTH_HEADER,
+        )
+
+        assert response.status_code == 422
+
+    def test_blank_device_info_returns_422(self, client):
+        body = {
+            **VALID_BODY,
+            "device_id": "   ",
+            "device_name": "   ",
+        }
+        response = client.post(
+            "/api/battery/submit",
+            json=body,
+            headers=AUTH_HEADER,
+        )
+
+        assert response.status_code == 422
+
+    def test_invalid_timestamp_returns_422(self, client):
+        body = {**VALID_BODY, "timestamp": "not-a-date"}
+        response = client.post(
+            "/api/battery/submit",
+            json=body,
+            headers=AUTH_HEADER,
+        )
+
+        assert response.status_code == 422
+
     def test_new_device_id_returned_when_generated(self, client):
         """Если device_id не был передан, сервис может вернуть новый."""
         body_without_device = {k: v for k, v in VALID_BODY.items() if k != "device_id"}

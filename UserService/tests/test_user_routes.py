@@ -60,7 +60,7 @@ class TestRegister:
         ):
             response = client.post(
                 "/register",
-                json={"email": "user@example.com", "name": "John", "password": "secret"},
+                json={"email": "user@example.com", "name": "John", "password": "password123"},
             )
 
         assert response.status_code == 200
@@ -80,7 +80,7 @@ class TestRegister:
         ):
             response = client.post(
                 "/register",
-                json={"email": "user@example.com", "name": "John", "password": "secret"},
+                json={"email": "user@example.com", "name": "John", "password": "password123"},
             )
 
         assert response.status_code == 400
@@ -100,24 +100,38 @@ class TestRegister:
         ):
             client.post(
                 "/register",
-                json={"email": "u@example.com", "name": "John", "password": "secret"},
+                json={"email": "u@example.com", "name": "John", "password": "password123"},
             )
 
-        mock_hash.assert_called_once_with("secret")
+        mock_hash.assert_called_once_with("password123")
 
     def test_missing_email_returns_422(self, client):
         """Отсутствие email возвращает 422"""
-        response = client.post("/register", json={"name": "John", "password": "secret"})
+        response = client.post("/register", json={"name": "John", "password": "password123"})
         assert response.status_code == 422
 
     def test_missing_name_returns_422(self, client):
         """Отсутствие name возвращает 422"""
-        response = client.post("/register", json={"email": "u@example.com", "password": "secret"})
+        response = client.post("/register", json={"email": "u@example.com", "password": "password123"})
         assert response.status_code == 422
 
     def test_missing_password_returns_422(self, client):
         """Отсутствие password возвращает 422"""
         response = client.post("/register", json={"email": "u@example.com", "name": "John"})
+        assert response.status_code == 422
+
+    def test_blank_name_returns_422(self, client):
+        response = client.post(
+            "/register",
+            json={"email": "u@example.com", "name": "   ", "password": "password123"},
+        )
+        assert response.status_code == 422
+
+    def test_short_password_returns_422(self, client):
+        response = client.post(
+            "/register",
+            json={"email": "u@example.com", "name": "John", "password": "short"},
+        )
         assert response.status_code == 422
 
     def test_commit_called_after_insert(self, client):
@@ -134,7 +148,7 @@ class TestRegister:
         ):
             client.post(
                 "/register",
-                json={"email": "u@example.com", "name": "John", "password": "secret"},
+                json={"email": "u@example.com", "name": "John", "password": "password123"},
             )
 
         mock_conn.commit.assert_called_once()
@@ -266,4 +280,8 @@ class TestLogin:
     def test_missing_password_returns_422(self, client):
         """Отсутствие password возвращает 422"""
         response = client.post("/login", json={"email": "u@example.com"})
+        assert response.status_code == 422
+
+    def test_blank_password_returns_422(self, client):
+        response = client.post("/login", json={"email": "u@example.com", "password": "   "})
         assert response.status_code == 422

@@ -1,5 +1,5 @@
 from app.db.connection import get_db_connection, get_db_cursor
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Query
 from typing import Optional
 from app.models import CycleInfo
 
@@ -9,8 +9,8 @@ router = APIRouter()
 @router.get("/cycles")
 async def get_cycles(
         x_user_id: str = Header(...),
-        device_id: Optional[str] = None,
-        limit: int = 50
+        device_id: Optional[str] = Query(default=None, min_length=1),
+        limit: int = Query(default=50, ge=1, le=200)
 ):
     """Получить циклы пользователя (все или для конкретного устройства)"""
 
