@@ -28,7 +28,7 @@ def _mock_response(data: dict, status: int = 200):
 @pytest.fixture()
 def client():
     with (
-        patch("app.routes.analytics.verify_jwt_token", return_value=VALID_PAYLOAD),
+        patch("app.utils.auth_dependencies.verify_jwt_token", return_value=VALID_PAYLOAD),
         patch("app.routes.analytics.ANALYTICS_SERVICE_URL", "http://analytics-svc"),
     ):
         from app.routes.analytics import router
@@ -61,9 +61,19 @@ class TestGetDevices:
             headers={"X-User-Id": USER_ID},
         )
 
-    def test_no_auth_header_returns_403(self, client):
+    def test_cookie_auth_works_without_authorization_header(self, client):
+        devices = [{"id": DEVICE_ID, "name": "Phone"}]
+        client.cookies.set("access_token", "cookie-token")
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(devices)
+            response = client.get("/api/analytics/devices")
+
+        assert response.status_code == 200
+        assert mock_proxy.call_args[1]["headers"]["X-User-Id"] == USER_ID
+
+    def test_no_auth_returns_401(self, client):
         response = client.get("/api/analytics/devices")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_upstream_404_passes_through(self, client):
         with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
@@ -137,12 +147,12 @@ class TestGetCycles:
         )
         assert response.status_code == 422
 
-    def test_no_auth_header_returns_403(self, client):
+    def test_no_auth_returns_401(self, client):
         response = client.get(
             "/api/analytics/cycles",
             params={"device_id": DEVICE_ID},
         )
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_upstream_500_passes_through(self, client):
         with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
@@ -180,9 +190,9 @@ class TestGetFullAnalytics:
             headers={"X-User-Id": USER_ID},
         )
 
-    def test_no_auth_returns_403(self, client):
+    def test_no_auth_returns_401(self, client):
         response = client.get("/api/analytics")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_upstream_404_passes_through(self, client):
         with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
@@ -272,12 +282,12 @@ class TestUpdateDevice:
         )
         assert response.status_code == 422
 
-    def test_no_auth_returns_403(self, client):
+    def test_no_auth_returns_401(self, client):
         response = client.put(
             f"/api/analytics/devices/{DEVICE_ID}",
             json={"device_name": "X"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_upstream_404_passes_through(self, client):
         with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
@@ -330,9 +340,9 @@ class TestDeleteDevice:
 
         assert response.status_code == 404
 
-    def test_no_auth_returns_403(self, client):
+    def test_no_auth_returns_401(self, client):
         response = client.delete(f"/api/analytics/devices/{DEVICE_ID}")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_upstream_500_passes_through(self, client):
         with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
@@ -357,7 +367,7 @@ class TestInvalidJwtAcrossEndpoints:
     def test_invalid_jwt_returns_401(self, method, url):
         with (
             patch(
-                "app.routes.analytics.verify_jwt_token",
+                "app.utils.auth_dependencies.verify_jwt_token",
                 side_effect=HTTPException(status_code=401, detail="Invalid token"),
             ),
             patch("app.routes.analytics.ANALYTICS_SERVICE_URL", "http://analytics-svc"),

@@ -180,3 +180,12 @@ class TestLogin:
             json={"email": "u@example.com", "password": "   "},
         )
         assert response.status_code == 422
+
+    def test_logout_deletes_access_token_cookie(self, client):
+        client.cookies.set("access_token", "jwt.token.here")
+        response = client.post("/api/auth/logout")
+
+        assert response.status_code == 200
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "access_token=" in set_cookie
+        assert "max-age=0" in set_cookie.lower()

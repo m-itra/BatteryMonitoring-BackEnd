@@ -36,7 +36,7 @@ def _mock_response(data: dict, status: int = 200):
 @pytest.fixture()
 def client():
     with (
-        patch("app.routes.battery.verify_jwt_token", return_value=VALID_PAYLOAD),
+        patch("app.utils.auth_dependencies.verify_jwt_token", return_value=VALID_PAYLOAD),
         patch("app.routes.battery.PROCESSING_SERVICE_URL", "http://processing-svc"),
     ):
         from app.routes.battery import router
@@ -94,14 +94,40 @@ class TestSubmitBatteryLog:
         assert isinstance(body, bytes)
         assert b"device-456" in body
 
-    def test_no_auth_header_returns_403(self, client):
+    def test_cookie_auth_works_without_authorization_header(self, client):
+        result = {"status": "ok", "device_id": "device-456"}
+        client.cookies.set("access_token", "cookie-token")
+        with patch("app.routes.battery.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(result)
+            response = client.post(
+                "/api/battery/submit",
+                json=VALID_BODY,
+            )
+
+        assert response.status_code == 200
+        assert mock_proxy.call_args[1]["headers"]["X-User-Id"] == USER_ID
+
+    def test_authorization_header_has_priority_over_cookie(self, client):
+        client.cookies.set("access_token", "cookie-token")
+        with patch("app.utils.auth_dependencies.verify_jwt_token", return_value=VALID_PAYLOAD) as mock_verify:
+            with patch("app.routes.battery.proxy_request", new_callable=AsyncMock) as mock_proxy:
+                mock_proxy.return_value = _mock_response({})
+                client.post(
+                    "/api/battery/submit",
+                    json=VALID_BODY,
+                    headers=AUTH_HEADER,
+                )
+
+        mock_verify.assert_called_once_with("sometoken")
+
+    def test_no_auth_returns_401(self, client):
         response = client.post("/api/battery/submit", json=VALID_BODY)
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_invalid_jwt_returns_401(self, client):
         with (
             patch(
-                "app.routes.battery.verify_jwt_token",
+                "app.utils.auth_dependencies.verify_jwt_token",
                 side_effect=HTTPException(status_code=401, detail="Invalid token"),
             ),
             patch("app.routes.battery.PROCESSING_SERVICE_URL", "http://processing-svc"),
