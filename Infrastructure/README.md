@@ -22,3 +22,25 @@ Or run one database explicitly:
 python -m alembic -c migrations/user-db/alembic.ini upgrade head
 python -m alembic -c migrations/battery-db/alembic.ini upgrade head
 ```
+
+## gRPC generation
+
+The source of truth for generated gRPC code is:
+
+```text
+Infrastructure/protos/user_service.proto
+```
+
+Regenerate Python gRPC files after changing the proto:
+
+```powershell
+.\scripts\generate_grpc.ps1
+```
+
+If the infrastructure virtual environment is not active, pass its Python explicitly:
+
+```powershell
+.\scripts\generate_grpc.ps1 -Python .\.venv\Scripts\python.exe
+```
+
+The script writes generated files to `UserService`, `ProcessingService`, and `AnalyticsService`.
