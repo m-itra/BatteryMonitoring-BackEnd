@@ -20,6 +20,26 @@ async def get_devices(user_id: str = Depends(get_current_user_id)):
     return JSONResponse(content=response.json(), status_code=response.status_code)
 
 
+@router.get("/api/analytics/devices/{device_id}", tags=["Analytics"])
+async def get_device_analytics(
+    device_id: str,
+    session_limit: int = Query(default=50, ge=1, le=200),
+    cycle_limit: int = Query(default=50, ge=1, le=200),
+    user_id: str = Depends(get_current_user_id),
+):
+    response = await proxy_request(
+        f"{ANALYTICS_SERVICE_URL}/devices/{device_id}",
+        "GET",
+        headers={"X-User-Id": user_id},
+        params={
+            "session_limit": session_limit,
+            "cycle_limit": cycle_limit,
+        },
+    )
+
+    return JSONResponse(content=response.json(), status_code=response.status_code)
+
+
 @router.get("/api/analytics/cycles", tags=["Analytics"])
 async def get_cycles(
     device_id: str = Query(..., min_length=1),

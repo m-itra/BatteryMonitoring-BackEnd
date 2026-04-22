@@ -90,6 +90,44 @@ class TestGetDevices:
         assert response.json() == []
 
 
+class TestGetDeviceAnalytics:
+
+    def test_returns_200_with_device_analytics(self, client):
+        payload = {"device": {"device_id": DEVICE_ID}, "recent_sessions": [], "cycles": [], "capacity_history": []}
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(payload)
+            response = client.get(f"/api/analytics/devices/{DEVICE_ID}", headers=AUTH_HEADER)
+
+        assert response.status_code == 200
+        assert response.json()["device"]["device_id"] == DEVICE_ID
+
+    def test_proxy_called_with_limits(self, client):
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response({})
+            client.get(
+                f"/api/analytics/devices/{DEVICE_ID}",
+                params={"session_limit": 10, "cycle_limit": 15},
+                headers=AUTH_HEADER,
+            )
+
+        mock_proxy.assert_called_once_with(
+            f"http://analytics-svc/devices/{DEVICE_ID}",
+            "GET",
+            headers={"X-User-Id": USER_ID},
+            params={"session_limit": 10, "cycle_limit": 15},
+        )
+
+    @pytest.mark.parametrize("field,value", [("session_limit", 0), ("cycle_limit", 201)])
+    def test_invalid_limits_return_422(self, client, field, value):
+        response = client.get(
+            f"/api/analytics/devices/{DEVICE_ID}",
+            params={field: value},
+            headers=AUTH_HEADER,
+        )
+
+        assert response.status_code == 422
+
+
 # ── GET /api/analytics/cycles ─────────────────────────────────────────────────
 
 class TestGetCycles:
