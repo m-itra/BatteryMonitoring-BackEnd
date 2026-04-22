@@ -26,6 +26,30 @@ VALID_BODY = {
     "timestamp": "2024-01-01T12:00:00",
 }
 
+VALID_BATCH_BODY = {
+    "device_id": "74fd26ad-5f67-489c-a17b-7f8eef3d9612",
+    "device_name": "Test Device",
+    "battery_id": r"\\?\acpi#pnp0c0a#battery",
+    "reference_capacity_mwh": 40000,
+    "samples": [
+        {
+            "boot_session_id": "3a0481a3-ab9b-4a9d-8d82-0f85cf822dbc",
+            "sample_seq": 1,
+            "client_time": "2026-04-21T13:40:17.967102",
+            "ac_connected": True,
+            "is_charging": True,
+            "charge_percent": 94.7,
+            "remaining_capacity_mwh": 37648,
+            "full_charge_capacity_mwh": 39735,
+            "design_capacity_mwh": 39735,
+            "voltage_mv": 12940,
+            "net_power_mw": -11793,
+            "temperature_c": None,
+            "status": "charging,ac_online",
+        }
+    ],
+}
+
 def _mock_response(data: dict, status: int = 200):
     m = MagicMock()
     m.json.return_value = data
@@ -217,3 +241,67 @@ class TestSubmitBatteryLog:
             )
 
         assert response.json().get("device_id") == "new-generated-device"
+
+
+class TestSubmitBatteryBatch:
+
+    def test_successful_batch_submit_returns_200(self, client):
+        result = {
+            "status": "ok",
+            "device_id": "74fd26ad-5f67-489c-a17b-7f8eef3d9612",
+            "processed_samples": 1,
+            "duplicate_samples": 0,
+            "completed_sessions": 0,
+            "completed_cycles": 0,
+        }
+        with patch("app.routes.battery.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(result)
+            response = client.post(
+                "/api/battery/logs/batch",
+                json=VALID_BATCH_BODY,
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        assert response.json()["processed_samples"] == 1
+
+    def test_batch_proxy_called_with_correct_url(self, client):
+        with patch("app.routes.battery.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response({})
+            client.post("/api/battery/logs/batch", json=VALID_BATCH_BODY, headers=AUTH_HEADER)
+
+        call_args = mock_proxy.call_args
+        assert call_args[0][0] == "http://processing-svc/logs/batch"
+        assert call_args[0][1] == "POST"
+
+    def test_batch_body_bytes_sent_to_proxy(self, client):
+        with patch("app.routes.battery.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response({})
+            client.post("/api/battery/logs/batch", json=VALID_BATCH_BODY, headers=AUTH_HEADER)
+
+        body = mock_proxy.call_args[1]["body"]
+        assert isinstance(body, bytes)
+        assert b"sample_seq" in body
+
+    def test_batch_without_samples_returns_422(self, client):
+        body = {**VALID_BATCH_BODY, "samples": []}
+        response = client.post(
+            "/api/battery/logs/batch",
+            json=body,
+            headers=AUTH_HEADER,
+        )
+
+        assert response.status_code == 422
+
+    def test_batch_invalid_charge_percent_returns_422(self, client):
+        body = {
+            **VALID_BATCH_BODY,
+            "samples": [{**VALID_BATCH_BODY["samples"][0], "charge_percent": 101}],
+        }
+        response = client.post(
+            "/api/battery/logs/batch",
+            json=body,
+            headers=AUTH_HEADER,
+        )
+
+        assert response.status_code == 422
