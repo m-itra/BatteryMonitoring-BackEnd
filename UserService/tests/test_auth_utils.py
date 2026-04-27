@@ -90,25 +90,26 @@ class TestCreateJwtToken:
     def test_returns_string(self):
         """Токен является строкой"""
         from app.utils.auth_utils import create_jwt_token
-        token = create_jwt_token("user-1", "user@example.com", "John")
+        token = create_jwt_token("user-1", "user@example.com", "John", "user")
         assert isinstance(token, str)
 
     def test_token_contains_three_parts(self):
         """JWT состоит из трёх частей разделённых точкой"""
         from app.utils.auth_utils import create_jwt_token
-        token = create_jwt_token("user-1", "user@example.com", "John")
+        token = create_jwt_token("user-1", "user@example.com", "John", "user")
         assert len(token.split(".")) == 3
 
     def test_payload_structure_and_fields(self):
         """Payload содержит все ожидаемые поля и корректные значения"""
         from app.utils.auth_utils import create_jwt_token
 
-        token = create_jwt_token("user-123", "test@example.com", "Alice")
+        token = create_jwt_token("user-123", "test@example.com", "Alice", "admin")
         payload = jwt.decode(token, self.SECRET, algorithms=[self.ALGORITHM])
 
         assert payload["user_id"] == "user-123"
         assert payload["email"] == "test@example.com"
         assert payload["name"] == "Alice"
+        assert payload["role"] == "admin"
         assert "exp" in payload
         assert "iat" in payload
 
@@ -116,7 +117,7 @@ class TestCreateJwtToken:
         """Токен истекает через 24 часа"""
         from app.utils.auth_utils import create_jwt_token
 
-        token = create_jwt_token("user-1", "user@example.com", "John")
+        token = create_jwt_token("user-1", "user@example.com", "John", "user")
         payload = jwt.decode(token, self.SECRET, algorithms=[self.ALGORITHM])
 
         assert payload["exp"] - payload["iat"] == pytest.approx(
@@ -127,8 +128,8 @@ class TestCreateJwtToken:
         """Разные пользователи имеют разные токены"""
         from app.utils.auth_utils import create_jwt_token
 
-        token1 = create_jwt_token("user-1", "a@example.com", "Alice")
-        token2 = create_jwt_token("user-2", "b@example.com", "Bob")
+        token1 = create_jwt_token("user-1", "a@example.com", "Alice", "user")
+        token2 = create_jwt_token("user-2", "b@example.com", "Bob", "admin")
 
         assert token1 != token2
 
@@ -136,7 +137,7 @@ class TestCreateJwtToken:
         """Токен не декодируется с неверным секретом"""
         from app.utils.auth_utils import create_jwt_token
 
-        token = create_jwt_token("user-1", "user@example.com", "John")
+        token = create_jwt_token("user-1", "user@example.com", "John", "user")
 
         with pytest.raises(jwt.InvalidTokenError):
             jwt.decode(token, "wrong-secret", algorithms=[self.ALGORITHM])

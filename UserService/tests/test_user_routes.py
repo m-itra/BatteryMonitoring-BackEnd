@@ -29,21 +29,25 @@ def make_user(
     email="user@example.com",
     name="John",
     password_hash="hashed",
+    role="user",
 ):
     return SimpleNamespace(
         user_id=user_id,
         email=email,
         name=name,
         password_hash=password_hash,
+        role=role,
+        created_at="2026-04-28T00:00:00",
     )
 
 
 @pytest.fixture()
 def client():
-    from app.routes.auth import router
+    from app.routes import admin, auth
 
     app = FastAPI()
-    app.include_router(router)
+    app.include_router(auth.router)
+    app.include_router(admin.router)
     return TestClient(app)
 
 
@@ -70,6 +74,7 @@ class TestRegister:
         data = response.json()
         assert data["email"] == "user@example.com"
         assert data["name"] == "John"
+        assert data["role"] == "user"
 
     def test_duplicate_email_returns_400(self, client):
         session = make_fake_session()
@@ -211,7 +216,28 @@ class TestLogin:
                 json={"email": "user@example.com", "password": "secret"},
             )
 
-        mock_jwt.assert_called_once_with("uuid-1", "user@example.com", "John")
+        mock_jwt.assert_called_once_with("uuid-1", "user@example.com", "John", "user")
+
+    def test_login_returns_user_role(self, client):
+        session = make_fake_session()
+
+        with (
+            patch("app.routes.auth.get_db_session", return_value=FakeSessionContext(session)),
+            patch(
+                "app.routes.auth.get_user_by_email",
+                new_callable=AsyncMock,
+                return_value=make_user(role="admin"),
+            ),
+            patch("app.routes.auth.verify_password", return_value=True),
+            patch("app.routes.auth.create_jwt_token", return_value="jwt.token.here"),
+        ):
+            response = client.post(
+                "/login",
+                json={"email": "user@example.com", "password": "secret"},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["user"]["role"] == "admin"
 
     def test_verify_password_called_with_correct_args(self, client):
         session = make_fake_session()
@@ -306,3 +332,54 @@ class TestDeleteCurrentUser:
     def test_missing_x_user_id_returns_422(self, client):
         response = client.delete("/users/me")
         assert response.status_code == 422
+
+
+class TestAdminRoutes:
+    def test_get_admin_users_returns_users(self, client):
+        session = make_fake_session()
+        users = [make_user(user_id="uuid-1"), make_user(user_id="uuid-2", email="other@example.com", role="admin")]
+
+        with (
+            patch("app.routes.admin.get_db_session", return_value=FakeSessionContext(session)),
+            patch("app.routes.admin.list_users", new_callable=AsyncMock, return_value=users),
+        ):
+            response = client.get("/admin/users")
+
+        assert response.status_code == 200
+        assert len(response.json()["users"]) == 2
+        assert response.json()["users"][1]["role"] == "admin"
+
+    def test_get_admin_stats_returns_user_count(self, client):
+        session = make_fake_session()
+        session.execute = AsyncMock(return_value=SimpleNamespace(scalar_one=lambda: 3))
+
+        with patch("app.routes.admin.get_db_session", return_value=FakeSessionContext(session)):
+            response = client.get("/admin/stats")
+
+        assert response.status_code == 200
+        assert response.json()["users_count"] == 3
+
+    def test_delete_admin_user_runs_cleanup_and_delete(self, client):
+        session = make_fake_session()
+        cleanup_payload = SimpleNamespace(
+            user_id="uuid-1",
+            deleted_devices=4,
+            message="User and battery data deleted",
+        )
+
+        with (
+            patch("app.routes.admin.get_db_session", return_value=FakeSessionContext(session)),
+            patch("app.routes.admin.get_user_by_id", new_callable=AsyncMock, return_value=make_user()),
+            patch(
+                "app.routes.admin.delete_user_with_battery_cleanup",
+                new_callable=AsyncMock,
+                return_value=cleanup_payload,
+            ),
+            patch("app.routes.admin.delete_user", new_callable=AsyncMock) as mock_delete_user,
+        ):
+            response = client.delete("/admin/users/uuid-1")
+
+        assert response.status_code == 200
+        assert response.json()["deleted_devices"] == 4
+        mock_delete_user.assert_awaited_once()
+        session.commit.assert_awaited_once()

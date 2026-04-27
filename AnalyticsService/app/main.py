@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import devices, cycles, analytics, health
+from app.routes import admin, analytics, cycles, devices, health
 
 app = FastAPI(title="AnalyticsService", version="1.0.0")
 
@@ -17,6 +17,7 @@ app.add_middleware(
 app.include_router(devices.router)
 app.include_router(cycles.router)
 app.include_router(analytics.router)
+app.include_router(admin.router)
 app.include_router(health.router)
 
 if __name__ == "__main__":

@@ -2,12 +2,22 @@ from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy.exc import IntegrityError
 
 from app.db.connection import get_db_session
+from app.db.models import User
 from app.db.user_repository import create_user, delete_user, get_user_by_email, get_user_by_id
 from app.models.user import DeleteUserResponse, LoginRequest, RegisterRequest, UserResponse
 from app.utils.auth_utils import create_jwt_token, hash_password, verify_password
 from app.utils.grpc_battery_client import BatteryDataCleanupError, delete_user_battery_data_via_grpc
 
 router = APIRouter()
+
+
+async def delete_user_with_battery_cleanup(user: User) -> DeleteUserResponse:
+    cleanup_result = await delete_user_battery_data_via_grpc(str(user.user_id))
+    return DeleteUserResponse(
+        user_id=str(user.user_id),
+        deleted_devices=cleanup_result.deleted_devices,
+        message="User and battery data deleted",
+    )
 
 
 @router.post("/register", response_model=UserResponse)
@@ -27,6 +37,7 @@ async def register(data: RegisterRequest):
                 user_id=str(user.user_id),
                 email=user.email,
                 name=user.name,
+                role=user.role,
             )
         except IntegrityError:
             await session.rollback()
@@ -54,6 +65,7 @@ async def login(data: LoginRequest):
             str(user.user_id),
             user.email,
             user.name,
+            user.role,
         )
 
         print(f"Login completed: {data.email}")
@@ -65,6 +77,7 @@ async def login(data: LoginRequest):
                 "user_id": str(user.user_id),
                 "email": user.email,
                 "name": user.name,
+                "role": user.role,
             },
         }
 
@@ -79,15 +92,11 @@ async def delete_current_user(
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
 
-            cleanup_result = await delete_user_battery_data_via_grpc(x_user_id)
+            response_payload = await delete_user_with_battery_cleanup(user)
             await delete_user(session, user)
             await session.commit()
 
-            return DeleteUserResponse(
-                user_id=x_user_id,
-                deleted_devices=cleanup_result.deleted_devices,
-                message="User and battery data deleted",
-            )
+            return response_payload
         except BatteryDataCleanupError as exc:
             await session.rollback()
             raise HTTPException(status_code=502, detail=str(exc))

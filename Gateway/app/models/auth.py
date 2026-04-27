@@ -55,6 +55,7 @@ class UserResponse(BaseModel):
     user_id: str
     email: str
     name: str
+    role: str
 
 
 class DeleteUserResponse(BaseModel):
@@ -67,3 +68,25 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str
     user: UserResponse
+
+
+class AdminUserInfo(BaseModel):
+    user_id: str
+    email: str
+    name: str
+    role: str
+    created_at: str
+
+
+class AdminUsersResponse(BaseModel):
+    users: list[AdminUserInfo]
+
+
+class AdminStatsResponse(BaseModel):
+    users_count: int
+    devices_count: int
+    active_sessions_count: int
+    completed_sessions_count: int
+    interrupted_sessions_count: int
+    equivalent_cycles_count: int
+    excluded_cycles_count: int

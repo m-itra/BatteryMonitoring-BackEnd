@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, EmailStr, StringConstraints, field_validator
@@ -36,9 +37,26 @@ class UserResponse(BaseModel):
     user_id: str
     email: str
     name: str
+    role: str
 
 
 class DeleteUserResponse(BaseModel):
     user_id: str
     deleted_devices: int
     message: str
+
+
+class AdminUserInfo(BaseModel):
+    user_id: str
+    email: str
+    name: str
+    role: str
+    created_at: datetime
+
+
+class AdminUsersResponse(BaseModel):
+    users: list[AdminUserInfo]
+
+
+class AdminUserStatsResponse(BaseModel):
+    users_count: int

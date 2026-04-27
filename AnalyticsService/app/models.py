@@ -111,6 +111,15 @@ class AnalyticsResponse(BaseModel):
     total_cycles: int
 
 
+class AdminBatteryStatsResponse(BaseModel):
+    devices_count: int
+    active_sessions_count: int
+    completed_sessions_count: int
+    interrupted_sessions_count: int
+    equivalent_cycles_count: int
+    excluded_cycles_count: int
+
+
 class DeviceAnalyticsResponse(BaseModel):
     device: DeviceInfo
     active_session: Optional[ActiveSessionInfo] = None
