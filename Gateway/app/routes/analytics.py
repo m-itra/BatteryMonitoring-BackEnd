@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from app.config import ANALYTICS_SERVICE_URL
-from app.models.analytics import CycleExclusionResponse, UpdateDeviceRequest
+from app.models.analytics import CycleDeletionResponse, CycleExclusionResponse, UpdateDeviceRequest
 from app.utils.auth_dependencies import get_current_user_id
 from app.utils.proxy_request import proxy_request
 
@@ -137,6 +137,25 @@ async def include_cycle_in_analytics(
     response = await proxy_request(
         f"{ANALYTICS_SERVICE_URL}/devices/{device_id}/cycles/{cycle_id}/include",
         "POST",
+        headers={"X-User-Id": user_id},
+    )
+
+    return JSONResponse(content=response.json(), status_code=response.status_code)
+
+
+@router.delete(
+    "/api/analytics/devices/{device_id}/cycles/{cycle_id}",
+    response_model=CycleDeletionResponse,
+    tags=["Analytics"],
+)
+async def delete_cycle_from_analytics(
+    device_id: str,
+    cycle_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
+    response = await proxy_request(
+        f"{ANALYTICS_SERVICE_URL}/devices/{device_id}/cycles/{cycle_id}",
+        "DELETE",
         headers={"X-User-Id": user_id},
     )
 

@@ -487,6 +487,51 @@ class TestToggleCycleExclusion:
         assert response.status_code == 401
 
 
+class TestDeleteCycle:
+    CYCLE_ID = "cycle-789"
+
+    def test_delete_cycle_returns_200(self, client):
+        payload = {
+            "status": "success",
+            "message": "Cycle deleted from analytics",
+            "device_id": DEVICE_ID,
+            "cycle_id": self.CYCLE_ID,
+            "deleted_sessions": 3,
+        }
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(payload)
+            response = client.delete(
+                f"/api/analytics/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}",
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        assert response.json()["deleted_sessions"] == 3
+
+    def test_delete_cycle_proxies_to_analytics_service(self, client):
+        with (
+            patch("app.routes.analytics.ANALYTICS_SERVICE_URL", "http://analytics-svc"),
+            patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy,
+        ):
+            mock_proxy.return_value = _mock_response({})
+            client.delete(
+                f"/api/analytics/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}",
+                headers=AUTH_HEADER,
+            )
+
+        mock_proxy.assert_called_once_with(
+            f"http://analytics-svc/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}",
+            "DELETE",
+            headers={"X-User-Id": USER_ID},
+        )
+
+    def test_delete_cycle_requires_auth(self, client):
+        response = client.delete(
+            f"/api/analytics/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}",
+        )
+        assert response.status_code == 401
+
+
 # ── Невалидный JWT — общий сценарий для всех защищённых эндпоинтов ────────────
 
 class TestInvalidJwtAcrossEndpoints:
@@ -495,6 +540,7 @@ class TestInvalidJwtAcrossEndpoints:
         ("GET",    "/api/analytics/devices"),
         ("GET",    "/api/analytics"),
         ("DELETE", f"/api/analytics/devices/{DEVICE_ID}"),
+        ("DELETE", f"/api/analytics/devices/{DEVICE_ID}/cycles/cycle-789"),
         ("POST",   f"/api/analytics/devices/{DEVICE_ID}/cycles/cycle-789/exclude"),
     ])
     def test_invalid_jwt_returns_401(self, method, url):

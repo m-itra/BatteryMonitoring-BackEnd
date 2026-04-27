@@ -143,6 +143,6 @@ class BatterySession(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     equivalent_cycle_id: Mapped[Optional[UUID]] = mapped_column(
         PostgresUUID(as_uuid=True),
-        ForeignKey("battery_equivalent_cycles.cycle_id", ondelete="SET NULL"),
+        ForeignKey("battery_equivalent_cycles.cycle_id", ondelete="CASCADE"),
     )
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, server_default=text("NOW()"))

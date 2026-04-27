@@ -2,12 +2,12 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.connection import get_db_session
-from app.db.models import BatteryEquivalentCycle
+from app.db.models import BatteryEquivalentCycle, BatterySession
 from app.db.query_helpers import build_cycle_info, parse_uuid_or_400
-from app.models import CycleExclusionResponse
+from app.models import CycleDeletionResponse, CycleExclusionResponse
 
 router = APIRouter()
 
@@ -135,6 +135,62 @@ async def include_cycle(
                 cycle_id=cycle_id,
                 is_excluded=False,
                 excluded_at=None,
+            )
+        except HTTPException:
+            await session.rollback()
+            raise
+        except Exception:
+            await session.rollback()
+            raise
+
+
+@router.delete(
+    "/devices/{device_id}/cycles/{cycle_id}",
+    response_model=CycleDeletionResponse,
+)
+async def delete_cycle(
+    device_id: str,
+    cycle_id: str,
+    x_user_id: str = Header(..., alias="X-User-Id"),
+):
+    user_id = parse_uuid_or_400(x_user_id, "X-User-Id")
+    parsed_device_id = parse_uuid_or_400(device_id, "device_id")
+    parsed_cycle_id = parse_uuid_or_400(cycle_id, "cycle_id")
+
+    async with get_db_session() as session:
+        try:
+            cycle_result = await session.execute(
+                select(BatteryEquivalentCycle)
+                .where(
+                    BatteryEquivalentCycle.cycle_id == parsed_cycle_id,
+                    BatteryEquivalentCycle.device_id == parsed_device_id,
+                    BatteryEquivalentCycle.user_id == user_id,
+                )
+                .with_for_update()
+            )
+            cycle = cycle_result.scalar_one_or_none()
+            if cycle is None:
+                raise HTTPException(status_code=404, detail="Cycle not found")
+
+            session_count_result = await session.execute(
+                select(func.count(BatterySession.session_id))
+                .where(
+                    BatterySession.equivalent_cycle_id == parsed_cycle_id,
+                    BatterySession.device_id == parsed_device_id,
+                    BatterySession.user_id == user_id,
+                )
+            )
+            deleted_sessions = session_count_result.scalar_one()
+
+            await session.delete(cycle)
+            await session.commit()
+
+            return CycleDeletionResponse(
+                status="success",
+                message="Cycle deleted from analytics",
+                device_id=device_id,
+                cycle_id=cycle_id,
+                deleted_sessions=deleted_sessions,
             )
         except HTTPException:
             await session.rollback()

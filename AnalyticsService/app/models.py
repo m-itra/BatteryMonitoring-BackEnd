@@ -83,6 +83,14 @@ class CycleExclusionResponse(BaseModel):
     excluded_at: Optional[datetime] = None
 
 
+class CycleDeletionResponse(BaseModel):
+    status: str
+    message: str
+    device_id: str
+    cycle_id: str
+    deleted_sessions: int
+
+
 class CapacityHistoryPoint(BaseModel):
     recorded_at: datetime
     full_charge_capacity_mwh: Optional[int] = None
