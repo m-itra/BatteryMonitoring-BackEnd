@@ -30,14 +30,20 @@ def _round(value: Optional[float], digits: int = 4) -> Optional[float]:
 def device_summary_statement(user_id: UUID, device_id: Optional[UUID] = None):
     total_cycles = (
         select(func.count(BatteryEquivalentCycle.cycle_id))
-        .where(BatteryEquivalentCycle.device_id == Device.device_id)
+        .where(
+            BatteryEquivalentCycle.device_id == Device.device_id,
+            BatteryEquivalentCycle.is_excluded.is_(False),
+        )
         .correlate(Device)
         .scalar_subquery()
     )
 
     last_soh_energy = (
         select(BatteryEquivalentCycle.soh_energy_percent)
-        .where(BatteryEquivalentCycle.device_id == Device.device_id)
+        .where(
+            BatteryEquivalentCycle.device_id == Device.device_id,
+            BatteryEquivalentCycle.is_excluded.is_(False),
+        )
         .order_by(BatteryEquivalentCycle.ended_at_client.desc())
         .limit(1)
         .correlate(Device)
@@ -178,6 +184,8 @@ def build_cycle_info(cycle: BatteryEquivalentCycle) -> CycleInfo:
         degradation_capacity_percent=_round(cycle.degradation_capacity_percent, 4),
         soh_energy_percent=_round(cycle.soh_energy_percent, 4),
         degradation_energy_percent=_round(cycle.degradation_energy_percent, 4),
+        is_excluded=cycle.is_excluded,
+        excluded_at=cycle.excluded_at,
         created_at=cycle.created_at,
     )
 

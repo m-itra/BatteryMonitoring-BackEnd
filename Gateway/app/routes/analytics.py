@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from app.config import ANALYTICS_SERVICE_URL
-from app.models.analytics import UpdateDeviceRequest
+from app.models.analytics import CycleExclusionResponse, UpdateDeviceRequest
 from app.utils.auth_dependencies import get_current_user_id
 from app.utils.proxy_request import proxy_request
 
@@ -44,6 +44,7 @@ async def get_device_analytics(
 async def get_cycles(
     device_id: str = Query(..., min_length=1),
     limit: int = Query(default=50, ge=1, le=200),
+    include_excluded: bool = Query(default=True),
     user_id: str = Depends(get_current_user_id),
 ):
     response = await proxy_request(
@@ -53,6 +54,7 @@ async def get_cycles(
         params={
             "device_id": device_id,
             "limit": limit,
+            "include_excluded": include_excluded,
         },
     )
 
@@ -97,6 +99,44 @@ async def delete_device(
     response = await proxy_request(
         f"{ANALYTICS_SERVICE_URL}/devices/{device_id}",
         "DELETE",
+        headers={"X-User-Id": user_id},
+    )
+
+    return JSONResponse(content=response.json(), status_code=response.status_code)
+
+
+@router.post(
+    "/api/analytics/devices/{device_id}/cycles/{cycle_id}/exclude",
+    response_model=CycleExclusionResponse,
+    tags=["Analytics"],
+)
+async def exclude_cycle_from_analytics(
+    device_id: str,
+    cycle_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
+    response = await proxy_request(
+        f"{ANALYTICS_SERVICE_URL}/devices/{device_id}/cycles/{cycle_id}/exclude",
+        "POST",
+        headers={"X-User-Id": user_id},
+    )
+
+    return JSONResponse(content=response.json(), status_code=response.status_code)
+
+
+@router.post(
+    "/api/analytics/devices/{device_id}/cycles/{cycle_id}/include",
+    response_model=CycleExclusionResponse,
+    tags=["Analytics"],
+)
+async def include_cycle_in_analytics(
+    device_id: str,
+    cycle_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
+    response = await proxy_request(
+        f"{ANALYTICS_SERVICE_URL}/devices/{device_id}/cycles/{cycle_id}/include",
+        "POST",
         headers={"X-User-Id": user_id},
     )
 

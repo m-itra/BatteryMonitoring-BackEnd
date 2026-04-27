@@ -76,13 +76,14 @@ async def get_device_analytics(
             .limit(cycle_limit)
         )
         cycles = cycles_result.scalars().all()
+        active_cycles = [cycle for cycle in cycles if not cycle.is_excluded]
 
         return DeviceAnalyticsResponse(
             device=build_device_info(device_row),
             active_session=build_active_session_info(active_session),
             recent_sessions=[build_session_info(battery_session) for battery_session in sessions],
             cycles=[build_cycle_info(cycle) for cycle in cycles],
-            capacity_history=[build_capacity_history_point(cycle) for cycle in cycles],
+            capacity_history=[build_capacity_history_point(cycle) for cycle in active_cycles],
         )
 
 

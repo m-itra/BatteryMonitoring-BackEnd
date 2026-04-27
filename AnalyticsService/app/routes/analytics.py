@@ -29,7 +29,10 @@ async def get_full_analytics(x_user_id: str = Header(..., alias="X-User-Id")):
 
         total_cycles_result = await session.execute(
             select(func.count(BatteryEquivalentCycle.cycle_id))
-            .where(BatteryEquivalentCycle.user_id == user_id)
+            .where(
+                BatteryEquivalentCycle.user_id == user_id,
+                BatteryEquivalentCycle.is_excluded.is_(False),
+            )
         )
         total_cycles = total_cycles_result.scalar_one()
 

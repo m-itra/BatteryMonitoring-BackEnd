@@ -103,6 +103,8 @@ class BatteryEquivalentCycle(Base):
     degradation_capacity_percent: Mapped[Optional[float]] = mapped_column(Float)
     soh_energy_percent: Mapped[Optional[float]] = mapped_column(Float)
     degradation_energy_percent: Mapped[Optional[float]] = mapped_column(Float)
+    is_excluded: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    excluded_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, server_default=text("NOW()"))
 
 

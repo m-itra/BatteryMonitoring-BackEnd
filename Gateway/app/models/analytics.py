@@ -24,3 +24,12 @@ class UpdateDeviceRequest(BaseModel):
     )
 
     device_name: NonEmptyStr
+
+
+class CycleExclusionResponse(BaseModel):
+    status: str
+    message: str
+    device_id: str
+    cycle_id: str
+    is_excluded: bool
+    excluded_at: Optional[str] = None

@@ -69,7 +69,18 @@ class CycleInfo(BaseModel):
     degradation_capacity_percent: Optional[float] = None
     soh_energy_percent: Optional[float] = None
     degradation_energy_percent: Optional[float] = None
+    is_excluded: bool = False
+    excluded_at: Optional[datetime] = None
     created_at: datetime
+
+
+class CycleExclusionResponse(BaseModel):
+    status: str
+    message: str
+    device_id: str
+    cycle_id: str
+    is_excluded: bool
+    excluded_at: Optional[datetime] = None
 
 
 class CapacityHistoryPoint(BaseModel):

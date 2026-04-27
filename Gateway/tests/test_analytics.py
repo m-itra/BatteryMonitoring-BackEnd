@@ -158,7 +158,7 @@ class TestGetCycles:
             "http://analytics-svc/cycles",
             "GET",
             headers={"X-User-Id": USER_ID},
-            params={"device_id": DEVICE_ID, "limit": 10},
+            params={"device_id": DEVICE_ID, "limit": 10, "include_excluded": True},
         )
 
     def test_default_limit_is_50(self, client):
@@ -171,6 +171,18 @@ class TestGetCycles:
             )
 
         assert mock_proxy.call_args[1]["params"]["limit"] == 50
+        assert mock_proxy.call_args[1]["params"]["include_excluded"] is True
+
+    def test_include_excluded_passed_through(self, client):
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response([])
+            client.get(
+                "/api/analytics/cycles",
+                params={"device_id": DEVICE_ID, "include_excluded": True},
+                headers=AUTH_HEADER,
+            )
+
+        assert mock_proxy.call_args[1]["params"]["include_excluded"] is True
 
     def test_missing_device_id_returns_422(self, client):
         response = client.get("/api/analytics/cycles", headers=AUTH_HEADER)
@@ -393,6 +405,88 @@ class TestDeleteDevice:
         assert response.status_code == 500
 
 
+class TestToggleCycleExclusion:
+    CYCLE_ID = "cycle-789"
+
+    def test_exclude_cycle_returns_200(self, client):
+        payload = {
+            "status": "success",
+            "message": "Cycle excluded from analytics",
+            "device_id": DEVICE_ID,
+            "cycle_id": self.CYCLE_ID,
+            "is_excluded": True,
+            "excluded_at": "2026-04-27T14:00:00",
+        }
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(payload)
+            response = client.post(
+                f"/api/analytics/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}/exclude",
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        assert response.json()["is_excluded"] is True
+
+    def test_include_cycle_returns_200(self, client):
+        payload = {
+            "status": "success",
+            "message": "Cycle included in analytics",
+            "device_id": DEVICE_ID,
+            "cycle_id": self.CYCLE_ID,
+            "is_excluded": False,
+            "excluded_at": None,
+        }
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(payload)
+            response = client.post(
+                f"/api/analytics/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}/include",
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        assert response.json()["is_excluded"] is False
+
+    def test_exclude_cycle_proxies_to_processing_service(self, client):
+        with (
+            patch("app.routes.analytics.ANALYTICS_SERVICE_URL", "http://analytics-svc"),
+            patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy,
+        ):
+            mock_proxy.return_value = _mock_response({})
+            client.post(
+                f"/api/analytics/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}/exclude",
+                headers=AUTH_HEADER,
+            )
+
+        mock_proxy.assert_called_once_with(
+            f"http://analytics-svc/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}/exclude",
+            "POST",
+            headers={"X-User-Id": USER_ID},
+        )
+
+    def test_include_cycle_proxies_to_analytics_service(self, client):
+        with (
+            patch("app.routes.analytics.ANALYTICS_SERVICE_URL", "http://analytics-svc"),
+            patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy,
+        ):
+            mock_proxy.return_value = _mock_response({})
+            client.post(
+                f"/api/analytics/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}/include",
+                headers=AUTH_HEADER,
+            )
+
+        mock_proxy.assert_called_once_with(
+            f"http://analytics-svc/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}/include",
+            "POST",
+            headers={"X-User-Id": USER_ID},
+        )
+
+    def test_exclude_cycle_requires_auth(self, client):
+        response = client.post(
+            f"/api/analytics/devices/{DEVICE_ID}/cycles/{self.CYCLE_ID}/exclude",
+        )
+        assert response.status_code == 401
+
+
 # ── Невалидный JWT — общий сценарий для всех защищённых эндпоинтов ────────────
 
 class TestInvalidJwtAcrossEndpoints:
@@ -401,6 +495,7 @@ class TestInvalidJwtAcrossEndpoints:
         ("GET",    "/api/analytics/devices"),
         ("GET",    "/api/analytics"),
         ("DELETE", f"/api/analytics/devices/{DEVICE_ID}"),
+        ("POST",   f"/api/analytics/devices/{DEVICE_ID}/cycles/cycle-789/exclude"),
     ])
     def test_invalid_jwt_returns_401(self, method, url):
         with (
