@@ -29,6 +29,12 @@ class Settings(BaseSettings):
         default="localhost:50052",
         validation_alias="PROCESSING_SERVICE_GRPC_URL",
     )
+    min_session_discharge_percent: float = Field(
+        default=20.0,
+        validation_alias="MIN_SESSION_DISCHARGE_PERCENT",
+        ge=0.0,
+        le=100.0,
+    )
 
     @model_validator(mode="after")
     def validate_non_dev_settings(self):
@@ -54,3 +60,4 @@ settings = get_settings()
 BATTERY_DATABASE_URL = settings.battery_database_url
 USER_SERVICE_GRPC_URL = settings.user_service_grpc_url
 PROCESSING_SERVICE_GRPC_URL = settings.processing_service_grpc_url
+MIN_SESSION_DISCHARGE_PERCENT = settings.min_session_discharge_percent

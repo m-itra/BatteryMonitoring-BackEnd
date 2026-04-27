@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import MIN_SESSION_DISCHARGE_PERCENT
 from app.db.models import BatteryActiveSession, BatterySession, Device
 from app.models.battery import BatterySample
 
@@ -12,6 +13,10 @@ from app.services.battery_cycle_builder import create_equivalent_cycles
 from app.services.battery_math import avg_load_mw, integrate_discharge
 
 INTERRUPTED_TIMEOUT_SECONDS = 120
+
+
+def should_persist_session(discharge_delta_percent: float) -> bool:
+    return discharge_delta_percent >= MIN_SESSION_DISCHARGE_PERCENT
 
 
 async def get_active_session(
@@ -42,8 +47,13 @@ async def close_active_session(
     ended_at_client: datetime,
     ended_at_server: datetime,
     end_charge_percent: float,
-) -> BatterySession:
+) -> Optional[BatterySession]:
     discharge_delta_percent = max(active_session.start_charge_percent - end_charge_percent, 0.0)
+
+    if not should_persist_session(discharge_delta_percent):
+        await delete_active_session(session, active_session)
+        return None
+
     average_load_mw = avg_load_mw(active_session.discharged_energy_mwh, active_session.duration_seconds)
 
     battery_session = BatterySession(
@@ -186,7 +196,7 @@ async def handle_finish_candidate(
         else active_session.current_charge_percent
     )
 
-    await close_active_session(
+    saved_session = await close_active_session(
         session,
         active_session,
         status="completed",
@@ -194,5 +204,8 @@ async def handle_finish_candidate(
         ended_at_server=ended_at_server,
         end_charge_percent=end_charge_percent,
     )
+    if saved_session is None:
+        return None, 0, 0
+
     completed_cycles = await create_equivalent_cycles(session, device)
     return None, 1, completed_cycles
