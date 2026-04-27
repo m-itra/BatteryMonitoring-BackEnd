@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Device
@@ -65,6 +65,21 @@ async def get_device_by_id(session: AsyncSession, device_id: str):
         "user_id": str(device.user_id),
         "device_name": device.device_name,
     }
+
+
+async def delete_devices_by_user_id(session: AsyncSession, user_id: str) -> int:
+    parsed_user_id = parse_uuid(user_id)
+    if parsed_user_id is None:
+        return 0
+
+    result = await session.execute(
+        delete(Device)
+        .where(Device.user_id == parsed_user_id)
+        .returning(Device.device_id)
+    )
+    deleted_device_ids = result.scalars().all()
+    await session.flush()
+    return len(deleted_device_ids)
 
 
 def _should_use_design_capacity(

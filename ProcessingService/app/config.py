@@ -25,6 +25,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BATTERY_DATABASE_URL", "DATABASE_URL"),
     )
     user_service_grpc_url: str = Field(default="localhost:50051", validation_alias="USER_SERVICE_GRPC_URL")
+    processing_service_grpc_url: str = Field(
+        default="localhost:50052",
+        validation_alias="PROCESSING_SERVICE_GRPC_URL",
+    )
 
     @model_validator(mode="after")
     def validate_non_dev_settings(self):
@@ -35,6 +39,8 @@ class Settings(BaseSettings):
             raise ValueError("BATTERY_DATABASE_URL must be set outside development")
         if self.user_service_grpc_url.startswith("localhost"):
             raise ValueError("USER_SERVICE_GRPC_URL must not point to localhost outside development")
+        if self.processing_service_grpc_url.startswith("localhost"):
+            raise ValueError("PROCESSING_SERVICE_GRPC_URL must not point to localhost outside development")
         return self
 
 
@@ -47,3 +53,4 @@ settings = get_settings()
 
 BATTERY_DATABASE_URL = settings.battery_database_url
 USER_SERVICE_GRPC_URL = settings.user_service_grpc_url
+PROCESSING_SERVICE_GRPC_URL = settings.processing_service_grpc_url

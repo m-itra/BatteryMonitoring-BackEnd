@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy.exc import IntegrityError
 
 from app.db.connection import get_db_session
-from app.db.user_repository import create_user, get_user_by_email
-from app.models.user import LoginRequest, RegisterRequest, UserResponse
+from app.db.user_repository import create_user, delete_user, get_user_by_email, get_user_by_id
+from app.models.user import DeleteUserResponse, LoginRequest, RegisterRequest, UserResponse
 from app.utils.auth_utils import create_jwt_token, hash_password, verify_password
+from app.utils.grpc_battery_client import BatteryDataCleanupError, delete_user_battery_data_via_grpc
 
 router = APIRouter()
 
@@ -66,3 +67,33 @@ async def login(data: LoginRequest):
                 "name": user.name,
             },
         }
+
+
+@router.delete("/users/me", response_model=DeleteUserResponse)
+async def delete_current_user(
+    x_user_id: str = Header(..., description="User ID from Gateway"),
+):
+    async with get_db_session() as session:
+        try:
+            user = await get_user_by_id(session, x_user_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            cleanup_result = await delete_user_battery_data_via_grpc(x_user_id)
+            await delete_user(session, user)
+            await session.commit()
+
+            return DeleteUserResponse(
+                user_id=x_user_id,
+                deleted_devices=cleanup_result.deleted_devices,
+                message="User and battery data deleted",
+            )
+        except BatteryDataCleanupError as exc:
+            await session.rollback()
+            raise HTTPException(status_code=502, detail=str(exc))
+        except HTTPException:
+            await session.rollback()
+            raise
+        except Exception:
+            await session.rollback()
+            raise

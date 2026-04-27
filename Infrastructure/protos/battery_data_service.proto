@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package battery_data;
+
+service BatteryDataService {
+  rpc DeleteUserBatteryData(DeleteUserBatteryDataRequest) returns (DeleteUserBatteryDataResponse);
+}
+
+message DeleteUserBatteryDataRequest {
+  string user_id = 1;
+}
+
+message DeleteUserBatteryDataResponse {
+  bool success = 1;
+  int32 deleted_devices = 2;
+  string message = 3;
+}

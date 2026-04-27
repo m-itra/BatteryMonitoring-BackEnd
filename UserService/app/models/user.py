@@ -36,3 +36,9 @@ class UserResponse(BaseModel):
     user_id: str
     email: str
     name: str
+
+
+class DeleteUserResponse(BaseModel):
+    user_id: str
+    deleted_devices: int
+    message: str

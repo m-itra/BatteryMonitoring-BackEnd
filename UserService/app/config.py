@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", validation_alias="JWT_ALGORITHM")
     jwt_expiration_hours: int = Field(default=24, validation_alias="JWT_EXPIRATION_HOURS")
     user_service_grpc_url: str = Field(default="localhost:50051", validation_alias="USER_SERVICE_GRPC_URL")
+    processing_service_grpc_url: str = Field(
+        default="localhost:50052",
+        validation_alias="PROCESSING_SERVICE_GRPC_URL",
+    )
 
     @model_validator(mode="after")
     def validate_non_dev_settings(self):
@@ -44,6 +48,8 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be set outside development")
         if self.user_service_grpc_url.startswith("localhost"):
             raise ValueError("USER_SERVICE_GRPC_URL must not point to localhost outside development")
+        if self.processing_service_grpc_url.startswith("localhost"):
+            raise ValueError("PROCESSING_SERVICE_GRPC_URL must not point to localhost outside development")
         return self
 
 
@@ -59,3 +65,4 @@ JWT_SECRET = settings.jwt_secret
 JWT_ALGORITHM = settings.jwt_algorithm
 JWT_EXPIRATION_HOURS = settings.jwt_expiration_hours
 USER_SERVICE_GRPC_URL = settings.user_service_grpc_url
+PROCESSING_SERVICE_GRPC_URL = settings.processing_service_grpc_url

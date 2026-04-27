@@ -57,6 +57,12 @@ class UserResponse(BaseModel):
     name: str
 
 
+class DeleteUserResponse(BaseModel):
+    user_id: str
+    deleted_devices: int
+    message: str
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str

@@ -32,3 +32,8 @@ async def create_user(session: AsyncSession, email: str, name: str, password_has
     session.add(user)
     await session.flush()
     return user
+
+
+async def delete_user(session: AsyncSession, user: User) -> None:
+    await session.delete(user)
+    await session.flush()

@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from app.config import (
@@ -7,7 +7,8 @@ from app.config import (
     AUTH_COOKIE_SECURE,
     USER_SERVICE_URL,
 )
-from app.models.auth import LoginRequest, LoginResponse, RegisterRequest
+from app.models.auth import DeleteUserResponse, LoginRequest, LoginResponse, RegisterRequest
+from app.utils.auth_dependencies import get_current_user_id
 from app.utils.proxy_request import proxy_request
 
 router = APIRouter()
@@ -58,4 +59,25 @@ async def logout():
         secure=AUTH_COOKIE_SECURE,
         samesite=AUTH_COOKIE_SAMESITE,
     )
+    return response
+
+
+@router.delete("/api/auth/me", response_model=DeleteUserResponse, tags=["Auth"])
+async def delete_current_user(
+    user_id: str = Depends(get_current_user_id),
+):
+    service_response = await proxy_request(
+        f"{USER_SERVICE_URL}/users/me",
+        "DELETE",
+        headers={"X-User-Id": user_id},
+    )
+
+    response = JSONResponse(content=service_response.json(), status_code=service_response.status_code)
+    if service_response.status_code == 200:
+        response.delete_cookie(
+            key="access_token",
+            httponly=True,
+            secure=AUTH_COOKIE_SECURE,
+            samesite=AUTH_COOKIE_SAMESITE,
+        )
     return response

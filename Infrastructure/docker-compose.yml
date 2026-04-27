@@ -86,6 +86,7 @@ services:
       JWT_SECRET: my-secret-key-change-in-production
       JWT_ALGORITHM: HS256
       JWT_EXPIRATION_HOURS: 24
+      PROCESSING_SERVICE_GRPC_URL: processing-service:50052
     depends_on:
       user-db-migrations:
         condition: service_completed_successfully
@@ -101,6 +102,7 @@ services:
       - "8002:8002"
     environment:
       DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
+      USER_SERVICE_GRPC_URL: user-service:50051
     depends_on:
       battery-db-migrations:
         condition: service_completed_successfully

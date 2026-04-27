@@ -25,13 +25,14 @@ python -m alembic -c migrations/battery-db/alembic.ini upgrade head
 
 ## gRPC generation
 
-The source of truth for generated gRPC code is:
+The sources of truth for generated gRPC code are:
 
 ```text
 Infrastructure/protos/user_service.proto
+Infrastructure/protos/battery_data_service.proto
 ```
 
-Regenerate Python gRPC files after changing the proto:
+Regenerate Python gRPC files after changing any proto:
 
 ```powershell
 .\scripts\generate_grpc.ps1
@@ -43,4 +44,8 @@ If the infrastructure virtual environment is not active, pass its Python explici
 .\scripts\generate_grpc.ps1 -Python .\.venv\Scripts\python.exe
 ```
 
-The script writes generated files to `UserService`, `ProcessingService`, and `AnalyticsService`.
+The script writes generated files to:
+
+- `UserService`
+- `ProcessingService`
+- `AnalyticsService` for `user_service.proto`

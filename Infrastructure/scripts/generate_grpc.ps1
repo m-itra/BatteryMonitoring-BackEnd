@@ -7,11 +7,22 @@ $ErrorActionPreference = "Stop"
 $infrastructureDir = Split-Path -Parent $PSScriptRoot
 $repositoryDir = Split-Path -Parent $infrastructureDir
 $protoDir = Join-Path $infrastructureDir "protos"
-$protoFile = Join-Path $protoDir "user_service.proto"
-$targetServices = @(
-    "UserService",
-    "ProcessingService",
-    "AnalyticsService"
+$protoTargets = @(
+    @{
+        ProtoFile = "user_service.proto"
+        TargetServices = @(
+            "UserService",
+            "ProcessingService",
+            "AnalyticsService"
+        )
+    },
+    @{
+        ProtoFile = "battery_data_service.proto"
+        TargetServices = @(
+            "UserService",
+            "ProcessingService"
+        )
+    }
 )
 
 function Invoke-Checked {
@@ -36,8 +47,11 @@ function Set-CrlfLineEndings {
     [System.IO.File]::WriteAllText($Path, $content, $utf8NoBom)
 }
 
-if (-not (Test-Path -LiteralPath $protoFile)) {
-    throw "Proto file not found: $protoFile"
+foreach ($protoTarget in $protoTargets) {
+    $protoFilePath = Join-Path $protoDir $protoTarget.ProtoFile
+    if (-not (Test-Path -LiteralPath $protoFilePath)) {
+        throw "Proto file not found: $protoFilePath"
+    }
 }
 
 $previousPythonWarnings = $env:PYTHONWARNINGS
@@ -46,31 +60,36 @@ $env:PYTHONWARNINGS = "ignore:pkg_resources is deprecated as an API:DeprecationW
 try {
     Invoke-Checked @($Python, "-c", "import grpc_tools.protoc")
 
-    foreach ($serviceName in $targetServices) {
-        $targetDir = Join-Path $repositoryDir $serviceName
+    foreach ($protoTarget in $protoTargets) {
+        $protoFilePath = Join-Path $protoDir $protoTarget.ProtoFile
+        $protoBaseName = [System.IO.Path]::GetFileNameWithoutExtension($protoTarget.ProtoFile)
 
-        if (-not (Test-Path -LiteralPath $targetDir)) {
-            throw "Target service directory not found: $targetDir"
+        foreach ($serviceName in $protoTarget.TargetServices) {
+            $targetDir = Join-Path $repositoryDir $serviceName
+
+            if (-not (Test-Path -LiteralPath $targetDir)) {
+                throw "Target service directory not found: $targetDir"
+            }
+
+            Write-Host "Generating gRPC code from $($protoTarget.ProtoFile) for $serviceName"
+            Invoke-Checked @(
+                $Python,
+                "-m",
+                "grpc_tools.protoc",
+                "-I",
+                $protoDir,
+                "--python_out=$targetDir",
+                "--grpc_python_out=$targetDir",
+                $protoFilePath
+            )
+
+            Set-CrlfLineEndings -Path (Join-Path $targetDir "$protoBaseName`_pb2.py")
+            Set-CrlfLineEndings -Path (Join-Path $targetDir "$protoBaseName`_pb2_grpc.py")
         }
-
-        Write-Host "Generating gRPC code for $serviceName"
-        Invoke-Checked @(
-            $Python,
-            "-m",
-            "grpc_tools.protoc",
-            "-I",
-            $protoDir,
-            "--python_out=$targetDir",
-            "--grpc_python_out=$targetDir",
-            $protoFile
-        )
-
-        Set-CrlfLineEndings -Path (Join-Path $targetDir "user_service_pb2.py")
-        Set-CrlfLineEndings -Path (Join-Path $targetDir "user_service_pb2_grpc.py")
     }
 }
 finally {
     $env:PYTHONWARNINGS = $previousPythonWarnings
 }
 
-Write-Host "gRPC code generated from $protoFile"
+Write-Host "gRPC code generated from all proto files in $protoDir"

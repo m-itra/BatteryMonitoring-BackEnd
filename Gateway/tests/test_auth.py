@@ -4,7 +4,9 @@ Unit-тесты для app/routes/auth.py
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+
+USER_ID = "e32e3a7c-723c-4257-aa42-9eb310b75c52"
 
 
 def _mock_response(data: dict, status: int = 200):
@@ -20,6 +22,17 @@ def client():
         from app.routes.auth import router
         app = FastAPI()
         app.include_router(router)
+        yield TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture()
+def authenticated_client():
+    with patch("app.routes.auth.USER_SERVICE_URL", "http://user-svc"):
+        from app.routes.auth import get_current_user_id, router
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_current_user_id] = lambda: USER_ID
         yield TestClient(app, raise_server_exceptions=False)
 
 
@@ -189,3 +202,54 @@ class TestLogin:
         set_cookie = response.headers.get("set-cookie", "")
         assert "access_token=" in set_cookie
         assert "max-age=0" in set_cookie.lower()
+
+
+class TestDeleteCurrentUser:
+    def test_successful_delete_returns_200_and_clears_cookie(self, authenticated_client):
+        result = {
+            "user_id": USER_ID,
+            "deleted_devices": 2,
+            "message": "User and battery data deleted",
+        }
+        authenticated_client.cookies.set("access_token", "jwt.token.here")
+
+        with patch("app.routes.auth.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(result, 200)
+            response = authenticated_client.delete("/api/auth/me")
+
+        assert response.status_code == 200
+        assert response.json()["deleted_devices"] == 2
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "access_token=" in set_cookie
+        assert "max-age=0" in set_cookie.lower()
+
+    def test_delete_proxies_user_id_header(self, authenticated_client):
+        with patch("app.routes.auth.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response({"message": "ok"}, 200)
+            authenticated_client.delete("/api/auth/me")
+
+        call_args = mock_proxy.call_args
+        assert call_args[0][0] == "http://user-svc/users/me"
+        assert call_args[0][1] == "DELETE"
+        assert call_args[1]["headers"]["X-User-Id"] == USER_ID
+
+    def test_delete_without_auth_returns_401(self, client):
+        response = client.delete("/api/auth/me")
+        assert response.status_code == 401
+
+    def test_delete_service_unavailable_passes_503(self, authenticated_client):
+        with patch(
+            "app.routes.auth.proxy_request",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(status_code=503, detail="Service unavailable"),
+        ):
+            response = authenticated_client.delete("/api/auth/me")
+
+        assert response.status_code == 503
+
+    def test_delete_user_not_found_passes_404(self, authenticated_client):
+        with patch("app.routes.auth.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response({"detail": "User not found"}, 404)
+            response = authenticated_client.delete("/api/auth/me")
+
+        assert response.status_code == 404

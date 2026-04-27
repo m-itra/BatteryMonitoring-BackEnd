@@ -244,3 +244,65 @@ class TestLogin:
     def test_blank_password_returns_422(self, client):
         response = client.post("/login", json={"email": "u@example.com", "password": "   "})
         assert response.status_code == 422
+
+
+class TestDeleteCurrentUser:
+    def test_successful_delete_removes_user_after_battery_cleanup(self, client):
+        session = make_fake_session()
+        cleanup_result = SimpleNamespace(success=True, deleted_devices=2, message="Deleted 2 device(s)")
+
+        with (
+            patch("app.routes.auth.get_db_session", return_value=FakeSessionContext(session)),
+            patch("app.routes.auth.get_user_by_id", new_callable=AsyncMock, return_value=make_user()),
+            patch(
+                "app.routes.auth.delete_user_battery_data_via_grpc",
+                new_callable=AsyncMock,
+                return_value=cleanup_result,
+            ),
+            patch("app.routes.auth.delete_user", new_callable=AsyncMock) as mock_delete_user,
+        ):
+            response = client.delete("/users/me", headers={"X-User-Id": "uuid-1"})
+
+        assert response.status_code == 200
+        assert response.json()["deleted_devices"] == 2
+        mock_delete_user.assert_awaited_once()
+        session.commit.assert_awaited_once()
+
+    def test_delete_user_not_found_returns_404(self, client):
+        session = make_fake_session()
+
+        with (
+            patch("app.routes.auth.get_db_session", return_value=FakeSessionContext(session)),
+            patch("app.routes.auth.get_user_by_id", new_callable=AsyncMock, return_value=None),
+            patch("app.routes.auth.delete_user_battery_data_via_grpc", new_callable=AsyncMock) as mock_cleanup,
+        ):
+            response = client.delete("/users/me", headers={"X-User-Id": "missing-user"})
+
+        assert response.status_code == 404
+        mock_cleanup.assert_not_called()
+        session.commit.assert_not_awaited()
+
+    def test_delete_rolls_back_when_battery_cleanup_fails(self, client):
+        from app.routes.auth import BatteryDataCleanupError
+
+        session = make_fake_session()
+
+        with (
+            patch("app.routes.auth.get_db_session", return_value=FakeSessionContext(session)),
+            patch("app.routes.auth.get_user_by_id", new_callable=AsyncMock, return_value=make_user()),
+            patch(
+                "app.routes.auth.delete_user_battery_data_via_grpc",
+                new_callable=AsyncMock,
+                side_effect=BatteryDataCleanupError("grpc down"),
+            ),
+            patch("app.routes.auth.delete_user", new_callable=AsyncMock) as mock_delete_user,
+        ):
+            response = client.delete("/users/me", headers={"X-User-Id": "uuid-1"})
+
+        assert response.status_code == 502
+        mock_delete_user.assert_not_called()
+        session.rollback.assert_awaited()
+
+    def test_missing_x_user_id_returns_422(self, client):
+        response = client.delete("/users/me")
+        assert response.status_code == 422
