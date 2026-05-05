@@ -7,7 +7,7 @@ from app.config import (
     AUTH_COOKIE_SECURE,
     USER_SERVICE_URL,
 )
-from app.models.auth import DeleteUserResponse, LoginRequest, LoginResponse, RegisterRequest
+from app.models.auth import DeleteUserResponse, LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.utils.auth_dependencies import get_current_user_id
 from app.utils.proxy_request import proxy_request
 
@@ -60,6 +60,18 @@ async def logout():
         samesite=AUTH_COOKIE_SAMESITE,
     )
     return response
+
+
+@router.get("/api/auth/me", response_model=UserResponse, tags=["Auth"])
+async def get_current_user(
+    user_id: str = Depends(get_current_user_id),
+):
+    service_response = await proxy_request(
+        f"{USER_SERVICE_URL}/users/me",
+        "GET",
+        headers={"X-User-Id": user_id},
+    )
+    return JSONResponse(content=service_response.json(), status_code=service_response.status_code)
 
 
 @router.delete("/api/auth/me", response_model=DeleteUserResponse, tags=["Auth"])

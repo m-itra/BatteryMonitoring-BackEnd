@@ -273,6 +273,38 @@ class TestLogin:
 
 
 class TestDeleteCurrentUser:
+    def test_get_current_user_returns_user(self, client):
+        session = make_fake_session()
+
+        with (
+            patch("app.routes.auth.get_db_session", return_value=FakeSessionContext(session)),
+            patch("app.routes.auth.get_user_by_id", new_callable=AsyncMock, return_value=make_user(role="admin")),
+        ):
+            response = client.get("/users/me", headers={"X-User-Id": "uuid-1"})
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "user_id": "uuid-1",
+            "email": "user@example.com",
+            "name": "John",
+            "role": "admin",
+        }
+
+    def test_get_current_user_not_found_returns_404(self, client):
+        session = make_fake_session()
+
+        with (
+            patch("app.routes.auth.get_db_session", return_value=FakeSessionContext(session)),
+            patch("app.routes.auth.get_user_by_id", new_callable=AsyncMock, return_value=None),
+        ):
+            response = client.get("/users/me", headers={"X-User-Id": "missing-user"})
+
+        assert response.status_code == 404
+
+    def test_get_current_user_missing_x_user_id_returns_422(self, client):
+        response = client.get("/users/me")
+        assert response.status_code == 422
+
     def test_successful_delete_removes_user_after_battery_cleanup(self, client):
         session = make_fake_session()
         cleanup_result = SimpleNamespace(success=True, deleted_devices=2, message="Deleted 2 device(s)")

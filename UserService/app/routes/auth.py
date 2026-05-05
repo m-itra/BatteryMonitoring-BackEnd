@@ -82,6 +82,23 @@ async def login(data: LoginRequest):
         }
 
 
+@router.get("/users/me", response_model=UserResponse)
+async def get_current_user(
+    x_user_id: str = Header(..., description="User ID from Gateway"),
+):
+    async with get_db_session() as session:
+        user = await get_user_by_id(session, x_user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return UserResponse(
+            user_id=str(user.user_id),
+            email=user.email,
+            name=user.name,
+            role=user.role,
+        )
+
+
 @router.delete("/users/me", response_model=DeleteUserResponse)
 async def delete_current_user(
     x_user_id: str = Header(..., description="User ID from Gateway"),

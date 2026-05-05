@@ -205,6 +205,29 @@ class TestLogin:
 
 
 class TestDeleteCurrentUser:
+    def test_get_current_user_returns_user_payload(self, authenticated_client):
+        result = {
+            "user_id": USER_ID,
+            "email": "user@example.com",
+            "name": "John Doe",
+            "role": "user",
+        }
+
+        with patch("app.routes.auth.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(result, 200)
+            response = authenticated_client.get("/api/auth/me")
+
+        assert response.status_code == 200
+        assert response.json()["role"] == "user"
+        call_args = mock_proxy.call_args
+        assert call_args[0][0] == "http://user-svc/users/me"
+        assert call_args[0][1] == "GET"
+        assert call_args[1]["headers"]["X-User-Id"] == USER_ID
+
+    def test_get_current_user_without_auth_returns_401(self, client):
+        response = client.get("/api/auth/me")
+        assert response.status_code == 401
+
     def test_successful_delete_returns_200_and_clears_cookie(self, authenticated_client):
         result = {
             "user_id": USER_ID,
