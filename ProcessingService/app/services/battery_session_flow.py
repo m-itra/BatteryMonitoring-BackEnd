@@ -68,7 +68,7 @@ async def close_active_session(
         end_charge_percent=end_charge_percent,
         discharge_delta_percent=round(discharge_delta_percent, 4),
         discharged_energy_mwh=round(active_session.discharged_energy_mwh, 4),
-        duration_seconds=active_session.duration_seconds,
+        duration_seconds=round(active_session.duration_seconds, 4),
         avg_load_mw=round(average_load_mw, 4) if average_load_mw is not None else None,
         status=status,
     )
@@ -88,9 +88,15 @@ async def interrupt_stale_session_if_needed(
     if active_session is None:
         return None
 
-    session_is_stale = (
-        received_at - active_session.last_server_received_at
-    ).total_seconds() > INTERRUPTED_TIMEOUT_SECONDS
+    client_gap_seconds = max(
+        (sample.client_time - active_session.last_client_time).total_seconds(),
+        0.0,
+    )
+    server_gap_seconds = max(
+        (received_at - active_session.last_server_received_at).total_seconds(),
+        0.0,
+    )
+    session_is_stale = client_gap_seconds > INTERRUPTED_TIMEOUT_SECONDS
     boot_changed = sample.boot_session_id != active_session.boot_session_id
 
     if not session_is_stale and not boot_changed:

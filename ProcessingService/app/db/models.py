@@ -60,7 +60,7 @@ class BatteryActiveSession(Base):
     start_charge_percent: Mapped[float] = mapped_column(Float, nullable=False)
     current_charge_percent: Mapped[float] = mapped_column(Float, nullable=False)
     discharged_energy_mwh: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
-    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
     pending_transition: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
@@ -95,7 +95,7 @@ class BatteryEquivalentCycle(Base):
     session_count: Mapped[int] = mapped_column(Integer, nullable=False)
     total_discharge_percent: Mapped[float] = mapped_column(Float, nullable=False)
     total_energy_mwh: Mapped[float] = mapped_column(Float, nullable=False)
-    total_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False)
     avg_load_mw: Mapped[Optional[float]] = mapped_column(Float)
     reference_capacity_mwh_used: Mapped[int] = mapped_column(Integer, nullable=False)
     full_charge_capacity_mwh_at_cycle_end: Mapped[Optional[int]] = mapped_column(Integer)
@@ -136,7 +136,7 @@ class BatterySession(Base):
     end_charge_percent: Mapped[float] = mapped_column(Float, nullable=False)
     discharge_delta_percent: Mapped[float] = mapped_column(Float, nullable=False)
     discharged_energy_mwh: Mapped[float] = mapped_column(Float, nullable=False)
-    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    duration_seconds: Mapped[float] = mapped_column(Float, nullable=False)
     avg_load_mw: Mapped[Optional[float]] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     equivalent_cycle_id: Mapped[Optional[UUID]] = mapped_column(

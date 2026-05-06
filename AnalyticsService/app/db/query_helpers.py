@@ -138,7 +138,7 @@ def build_active_session_info(active_session: Optional[BatteryActiveSession]) ->
         start_charge_percent=_round(active_session.start_charge_percent, 4) or 0.0,
         current_charge_percent=_round(active_session.current_charge_percent, 4) or 0.0,
         discharged_energy_mwh=_round(active_session.discharged_energy_mwh, 4) or 0.0,
-        duration_seconds=active_session.duration_seconds,
+        duration_seconds=_round(active_session.duration_seconds, 4) or 0.0,
         pending_transition=active_session.pending_transition,
     )
 
@@ -156,7 +156,7 @@ def build_session_info(battery_session: BatterySession) -> SessionInfo:
         end_charge_percent=_round(battery_session.end_charge_percent, 4) or 0.0,
         discharge_delta_percent=_round(battery_session.discharge_delta_percent, 4) or 0.0,
         discharged_energy_mwh=_round(battery_session.discharged_energy_mwh, 4) or 0.0,
-        duration_seconds=battery_session.duration_seconds,
+        duration_seconds=_round(battery_session.duration_seconds, 4) or 0.0,
         avg_load_mw=_round(battery_session.avg_load_mw, 4),
         status=battery_session.status,
         equivalent_cycle_id=(
@@ -176,7 +176,7 @@ def build_cycle_info(cycle: BatteryEquivalentCycle) -> CycleInfo:
         session_count=cycle.session_count,
         total_discharge_percent=_round(cycle.total_discharge_percent, 4) or 0.0,
         total_energy_mwh=_round(cycle.total_energy_mwh, 4) or 0.0,
-        total_duration_seconds=cycle.total_duration_seconds,
+        total_duration_seconds=_round(cycle.total_duration_seconds, 4) or 0.0,
         avg_load_mw=_round(cycle.avg_load_mw, 4),
         reference_capacity_mwh_used=cycle.reference_capacity_mwh_used,
         full_charge_capacity_mwh_at_cycle_end=cycle.full_charge_capacity_mwh_at_cycle_end,

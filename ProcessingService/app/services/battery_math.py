@@ -1,8 +1,11 @@
-from datetime import datetime
-from typing import Optional
+from __future__ import annotations
 
-from app.db.models import Device
-from app.models.battery import BatterySample
+from datetime import datetime
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.db.models import Device
+    from app.models.battery import BatterySample
 
 
 def order_samples(samples: list[BatterySample]) -> list[BatterySample]:
@@ -21,19 +24,19 @@ def integrate_discharge(
     previous_client_time: Optional[datetime],
     previous_net_power_mw: Optional[int],
     current_client_time: datetime,
-) -> tuple[float, int]:
+) -> tuple[float, float]:
     if previous_client_time is None or previous_net_power_mw is None:
-        return 0.0, 0
+        return 0.0, 0.0
 
-    dt_seconds = max(int((current_client_time - previous_client_time).total_seconds()), 0)
-    if dt_seconds == 0:
-        return 0.0, 0
+    dt_seconds = max((current_client_time - previous_client_time).total_seconds(), 0.0)
+    if dt_seconds <= 0:
+        return 0.0, 0.0
 
     energy_step_mwh = max(previous_net_power_mw, 0) * (dt_seconds / 3600)
     return energy_step_mwh, dt_seconds
 
 
-def avg_load_mw(energy_mwh: float, duration_seconds: int) -> Optional[float]:
+def avg_load_mw(energy_mwh: float, duration_seconds: float) -> Optional[float]:
     if duration_seconds <= 0:
         return None
 

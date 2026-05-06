@@ -31,7 +31,7 @@ class ActiveSessionInfo(BaseModel):
     start_charge_percent: float
     current_charge_percent: float
     discharged_energy_mwh: float
-    duration_seconds: int
+    duration_seconds: float
     pending_transition: str
 
 
@@ -47,7 +47,7 @@ class SessionInfo(BaseModel):
     end_charge_percent: float
     discharge_delta_percent: float
     discharged_energy_mwh: float
-    duration_seconds: int
+    duration_seconds: float
     avg_load_mw: Optional[float] = None
     status: str
     equivalent_cycle_id: Optional[str] = None
@@ -61,7 +61,7 @@ class CycleInfo(BaseModel):
     session_count: int
     total_discharge_percent: float
     total_energy_mwh: float
-    total_duration_seconds: int
+    total_duration_seconds: float
     avg_load_mw: Optional[float] = None
     reference_capacity_mwh_used: int
     full_charge_capacity_mwh_at_cycle_end: Optional[int] = None

@@ -53,7 +53,7 @@ async def process_battery_batch(
                     start_charge_percent=sample.charge_percent,
                     current_charge_percent=sample.charge_percent,
                     discharged_energy_mwh=0.0,
-                    duration_seconds=0,
+                    duration_seconds=0.0,
                     pending_transition="start_candidate",
                 )
                 session.add(active_session)

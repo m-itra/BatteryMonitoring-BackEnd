@@ -47,7 +47,7 @@ async def create_equivalent_cycles(
 
         accumulated_percent = 0.0
         total_energy_mwh = 0.0
-        total_duration_seconds = 0
+        total_duration_seconds = 0.0
         selected_sessions: list[BatterySession] = []
         cycle_started_at: Optional[datetime] = None
         cycle_ended_at: Optional[datetime] = None
@@ -70,7 +70,7 @@ async def create_equivalent_cycles(
 
             usage_ratio = remaining_percent / session_percent if session_percent > 0 else 0.0
             total_energy_mwh += pending_session.discharged_energy_mwh * usage_ratio
-            total_duration_seconds += int(round(pending_session.duration_seconds * usage_ratio))
+            total_duration_seconds += pending_session.duration_seconds * usage_ratio
             accumulated_percent = 100.0
             break
 
@@ -101,7 +101,7 @@ async def create_equivalent_cycles(
             session_count=len(selected_sessions),
             total_discharge_percent=100.0,
             total_energy_mwh=round(total_energy_mwh, 4),
-            total_duration_seconds=total_duration_seconds,
+            total_duration_seconds=round(total_duration_seconds, 4),
             avg_load_mw=round(average_load_mw, 4) if average_load_mw is not None else None,
             reference_capacity_mwh_used=reference_capacity_mwh,
             full_charge_capacity_mwh_at_cycle_end=full_charge_capacity_mwh,
