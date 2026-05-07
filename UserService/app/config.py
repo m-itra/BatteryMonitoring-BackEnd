@@ -30,7 +30,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("JWT_SECRET", "SECRET_KEY"),
     )
     jwt_algorithm: str = Field(default="HS256", validation_alias="JWT_ALGORITHM")
-    jwt_expiration_hours: int = Field(default=24, validation_alias="JWT_EXPIRATION_HOURS")
+    jwt_expiration_hours: int = Field(default=24 * 30, validation_alias="JWT_EXPIRATION_HOURS")
     user_service_grpc_url: str = Field(default="localhost:50051", validation_alias="USER_SERVICE_GRPC_URL")
     processing_service_grpc_url: str = Field(
         default="localhost:50052",

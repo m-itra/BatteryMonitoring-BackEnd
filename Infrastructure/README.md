@@ -48,4 +48,3 @@ The script writes generated files to:
 
 - `UserService`
 - `ProcessingService`
-- `AnalyticsService` for `user_service.proto`

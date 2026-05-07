@@ -12,8 +12,7 @@ $protoTargets = @(
         ProtoFile = "user_service.proto"
         TargetServices = @(
             "UserService",
-            "ProcessingService",
-            "AnalyticsService"
+            "ProcessingService"
         )
     },
     @{

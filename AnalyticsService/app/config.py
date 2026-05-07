@@ -25,13 +25,11 @@ class Settings(BaseSettings):
         default=DEV_BATTERY_DATABASE_URL,
         validation_alias=AliasChoices("BATTERY_DATABASE_URL", "DATABASE_URL"),
     )
-    user_service_url: str = Field(default="http://localhost:8001", validation_alias="USER_SERVICE_URL")
     jwt_secret: str = Field(
         default=DEV_JWT_SECRET,
         validation_alias=AliasChoices("JWT_SECRET", "SECRET_KEY"),
     )
     jwt_algorithm: str = Field(default="HS256", validation_alias="JWT_ALGORITHM")
-    user_service_grpc_url: str = Field(default="localhost:50051", validation_alias="USER_SERVICE_GRPC_URL")
 
     @model_validator(mode="after")
     def validate_non_dev_settings(self):
@@ -42,10 +40,6 @@ class Settings(BaseSettings):
             raise ValueError("BATTERY_DATABASE_URL must be set outside development")
         if self.jwt_secret == DEV_JWT_SECRET:
             raise ValueError("JWT_SECRET must be set outside development")
-        if "localhost" in self.user_service_url:
-            raise ValueError("USER_SERVICE_URL must not point to localhost outside development")
-        if self.user_service_grpc_url.startswith("localhost"):
-            raise ValueError("USER_SERVICE_GRPC_URL must not point to localhost outside development")
         return self
 
 
@@ -57,7 +51,5 @@ def get_settings() -> Settings:
 settings = get_settings()
 
 BATTERY_DATABASE_URL = settings.battery_database_url
-USER_SERVICE_URL = settings.user_service_url
 JWT_SECRET = settings.jwt_secret
 JWT_ALGORITHM = settings.jwt_algorithm
-USER_SERVICE_GRPC_URL = settings.user_service_grpc_url

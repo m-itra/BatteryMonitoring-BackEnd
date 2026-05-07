@@ -8,7 +8,7 @@ Unit-тесты для app/routes/analytics.py
   DELETE /api/analytics/devices/{device_id}
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 from fastapi.testclient import TestClient
 from fastapi import FastAPI, HTTPException
 
@@ -30,6 +30,7 @@ def client():
     with (
         patch("app.utils.auth_dependencies.verify_jwt_token", return_value=VALID_PAYLOAD),
         patch("app.routes.analytics.ANALYTICS_SERVICE_URL", "http://analytics-svc"),
+        patch("app.routes.analytics.USER_SERVICE_URL", "http://user-svc"),
     ):
         from app.routes.analytics import router
         app = FastAPI()
@@ -221,35 +222,72 @@ class TestGetCycles:
 class TestGetFullAnalytics:
 
     def test_returns_200_with_analytics(self, client):
-        analytics = {"total_cycles": 42, "avg_duration": 95}
+        user = {"user_id": USER_ID, "email": "user@example.com", "name": "Test User", "role": "user"}
+        analytics = {"devices": [], "recent_cycles": [], "total_cycles": 42}
         with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
-            mock_proxy.return_value = _mock_response(analytics)
+            mock_proxy.side_effect = [
+                _mock_response(user),
+                _mock_response(analytics),
+            ]
             response = client.get("/api/analytics", headers=AUTH_HEADER)
 
         assert response.status_code == 200
-        assert response.json() == analytics
+        assert response.json() == {
+            "user": user,
+            "devices": [],
+            "recent_cycles": [],
+            "total_cycles": 42,
+        }
 
-    def test_proxy_called_with_correct_url(self, client):
+    def test_proxy_called_with_correct_urls(self, client):
         with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
-            mock_proxy.return_value = _mock_response({})
+            mock_proxy.side_effect = [
+                _mock_response({"user_id": USER_ID, "email": "user@example.com", "name": "Test User", "role": "user"}),
+                _mock_response({"devices": [], "recent_cycles": [], "total_cycles": 0}),
+            ]
             client.get("/api/analytics", headers=AUTH_HEADER)
 
-        mock_proxy.assert_called_once_with(
-            "http://analytics-svc/analytics",
-            "GET",
-            headers={"X-User-Id": USER_ID},
+        assert mock_proxy.await_count == 2
+        mock_proxy.assert_has_awaits(
+            [
+                call(
+                    "http://user-svc/users/me",
+                    "GET",
+                    headers={"X-User-Id": USER_ID},
+                ),
+                call(
+                    "http://analytics-svc/analytics",
+                    "GET",
+                    headers={"X-User-Id": USER_ID},
+                ),
+            ]
         )
 
     def test_no_auth_returns_401(self, client):
         response = client.get("/api/analytics")
         assert response.status_code == 401
 
-    def test_upstream_404_passes_through(self, client):
+    def test_user_upstream_404_passes_through(self, client):
         with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
-            mock_proxy.return_value = _mock_response({"error": "not found"}, 404)
+            mock_proxy.side_effect = [
+                _mock_response({"error": "user not found"}, 404),
+                _mock_response({"devices": [], "recent_cycles": [], "total_cycles": 0}),
+            ]
             response = client.get("/api/analytics", headers=AUTH_HEADER)
 
         assert response.status_code == 404
+        assert response.json() == {"error": "user not found"}
+
+    def test_analytics_upstream_404_passes_through(self, client):
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.side_effect = [
+                _mock_response({"user_id": USER_ID, "email": "user@example.com", "name": "Test User", "role": "user"}),
+                _mock_response({"error": "not found"}, 404),
+            ]
+            response = client.get("/api/analytics", headers=AUTH_HEADER)
+
+        assert response.status_code == 404
+        assert response.json() == {"error": "not found"}
 
 
 # ── PUT /api/analytics/devices/{device_id} ────────────────────────────────────

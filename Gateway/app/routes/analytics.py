@@ -1,7 +1,9 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
-from app.config import ANALYTICS_SERVICE_URL
+from app.config import ANALYTICS_SERVICE_URL, USER_SERVICE_URL
 from app.models.analytics import CycleDeletionResponse, CycleExclusionResponse, UpdateDeviceRequest
 from app.utils.auth_dependencies import get_current_user_id
 from app.utils.proxy_request import proxy_request
@@ -63,13 +65,34 @@ async def get_cycles(
 
 @router.get("/api/analytics", tags=["Analytics"])
 async def get_full_analytics(user_id: str = Depends(get_current_user_id)):
-    response = await proxy_request(
-        f"{ANALYTICS_SERVICE_URL}/analytics",
-        "GET",
-        headers={"X-User-Id": user_id},
+    user_response, analytics_response = await asyncio.gather(
+        proxy_request(
+            f"{USER_SERVICE_URL}/users/me",
+            "GET",
+            headers={"X-User-Id": user_id},
+        ),
+        proxy_request(
+            f"{ANALYTICS_SERVICE_URL}/analytics",
+            "GET",
+            headers={"X-User-Id": user_id},
+        ),
     )
 
-    return JSONResponse(content=response.json(), status_code=response.status_code)
+    if user_response.status_code != 200:
+        return JSONResponse(
+            content=user_response.json(),
+            status_code=user_response.status_code,
+        )
+
+    if analytics_response.status_code != 200:
+        return JSONResponse(
+            content=analytics_response.json(),
+            status_code=analytics_response.status_code,
+        )
+
+    analytics_payload = analytics_response.json()
+    analytics_payload["user"] = user_response.json()
+    return JSONResponse(content=analytics_payload, status_code=analytics_response.status_code)
 
 
 @router.put("/api/analytics/devices/{device_id}", tags=["Analytics"])

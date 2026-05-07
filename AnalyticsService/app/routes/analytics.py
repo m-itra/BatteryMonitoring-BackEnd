@@ -4,16 +4,14 @@ from sqlalchemy import func, select
 from app.db.connection import get_db_session
 from app.db.models import BatteryEquivalentCycle
 from app.db.query_helpers import build_cycle_info, build_device_info, device_summary_statement, parse_uuid_or_400
-from app.models import AnalyticsResponse
-from app.utils.user_info import get_user_info
+from app.models import AnalyticsDataResponse
 
 router = APIRouter()
 
 
-@router.get("/analytics", response_model=AnalyticsResponse)
+@router.get("/analytics", response_model=AnalyticsDataResponse)
 async def get_full_analytics(x_user_id: str = Header(..., alias="X-User-Id")):
     user_id = parse_uuid_or_400(x_user_id, "X-User-Id")
-    user_info = await get_user_info(x_user_id)
 
     async with get_db_session() as session:
         devices_result = await session.execute(device_summary_statement(user_id))
@@ -36,8 +34,7 @@ async def get_full_analytics(x_user_id: str = Header(..., alias="X-User-Id")):
         )
         total_cycles = total_cycles_result.scalar_one()
 
-        return AnalyticsResponse(
-            user=user_info,
+        return AnalyticsDataResponse(
             devices=[build_device_info(device) for device in devices],
             recent_cycles=[build_cycle_info(cycle) for cycle in cycles],
             total_cycles=total_cycles,

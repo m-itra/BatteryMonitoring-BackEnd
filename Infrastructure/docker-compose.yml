@@ -85,7 +85,7 @@ services:
       DATABASE_URL: postgresql://admin:password@user-db:5432/userdb
       JWT_SECRET: my-secret-key-change-in-production
       JWT_ALGORITHM: HS256
-      JWT_EXPIRATION_HOURS: 24
+      JWT_EXPIRATION_HOURS: 720
       PROCESSING_SERVICE_GRPC_URL: processing-service:50052
     depends_on:
       user-db-migrations:
@@ -118,12 +118,9 @@ services:
       - "8003:8003"
     environment:
       DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
-      USER_SERVICE_URL: http://user-service:8001
     depends_on:
       battery-db-migrations:
         condition: service_completed_successfully
-      user-service:
-        condition: service_started
     restart: unless-stopped
     networks:
       - battery-network
@@ -137,6 +134,7 @@ services:
     environment:
       JWT_SECRET: my-secret-key-change-in-production
       JWT_ALGORITHM: HS256
+      AUTH_COOKIE_MAX_AGE_SECONDS: 2592000
       USER_SERVICE_URL: http://user-service:8001
       PROCESSING_SERVICE_URL: http://processing-service:8002
       ANALYTICS_SERVICE_URL: http://analytics-service:8003

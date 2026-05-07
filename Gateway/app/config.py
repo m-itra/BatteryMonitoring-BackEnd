@@ -27,7 +27,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", validation_alias="JWT_ALGORITHM")
     auth_cookie_secure: bool = Field(default=False, validation_alias="AUTH_COOKIE_SECURE")
     auth_cookie_samesite: str = Field(default="lax", validation_alias="AUTH_COOKIE_SAMESITE")
-    auth_cookie_max_age_seconds: int = Field(default=24 * 60 * 60, validation_alias="AUTH_COOKIE_MAX_AGE_SECONDS")
+    auth_cookie_max_age_seconds: int = Field(
+        default=30 * 24 * 60 * 60,
+        validation_alias="AUTH_COOKIE_MAX_AGE_SECONDS",
+    )
     user_service_url: str = Field(default="http://localhost:8001", validation_alias="USER_SERVICE_URL")
     processing_service_url: str = Field(
         default="http://localhost:8002",

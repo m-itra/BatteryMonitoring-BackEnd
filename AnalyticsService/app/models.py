@@ -104,11 +104,14 @@ class UpdateDeviceRequest(BaseModel):
     device_name: NonEmptyStr
 
 
-class AnalyticsResponse(BaseModel):
-    user: dict
+class AnalyticsDataResponse(BaseModel):
     devices: List[DeviceInfo]
     recent_cycles: List[CycleInfo]
     total_cycles: int
+
+
+class AnalyticsResponse(AnalyticsDataResponse):
+    user: dict
 
 
 class AdminBatteryStatsResponse(BaseModel):
