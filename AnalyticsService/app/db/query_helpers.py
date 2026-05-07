@@ -27,6 +27,47 @@ def _round(value: Optional[float], digits: int = 4) -> Optional[float]:
     return round(value, digits)
 
 
+def _resolve_reference_capacity(
+    current_reference_capacity_mwh: Optional[int],
+    fallback_reference_capacity_mwh: Optional[int],
+) -> Optional[int]:
+    if current_reference_capacity_mwh is not None and current_reference_capacity_mwh > 0:
+        return current_reference_capacity_mwh
+    if fallback_reference_capacity_mwh is not None and fallback_reference_capacity_mwh > 0:
+        return fallback_reference_capacity_mwh
+    return None
+
+
+def _compute_cycle_health_metrics(
+    *,
+    reference_capacity_mwh: Optional[int],
+    full_charge_capacity_mwh_at_cycle_end: Optional[int],
+    total_energy_mwh: Optional[float],
+) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
+    soh_capacity_percent = None
+    degradation_capacity_percent = None
+    if (
+        reference_capacity_mwh is not None
+        and reference_capacity_mwh > 0
+        and full_charge_capacity_mwh_at_cycle_end is not None
+    ):
+        soh_capacity_percent = (full_charge_capacity_mwh_at_cycle_end * 100.0) / reference_capacity_mwh
+        degradation_capacity_percent = max(0.0, 100.0 - soh_capacity_percent)
+
+    soh_energy_percent = None
+    degradation_energy_percent = None
+    if reference_capacity_mwh is not None and reference_capacity_mwh > 0 and total_energy_mwh is not None:
+        soh_energy_percent = (total_energy_mwh * 100.0) / reference_capacity_mwh
+        degradation_energy_percent = max(0.0, 100.0 - soh_energy_percent)
+
+    return (
+        _round(soh_capacity_percent, 4),
+        _round(degradation_capacity_percent, 4),
+        _round(soh_energy_percent, 4),
+        _round(degradation_energy_percent, 4),
+    )
+
+
 def device_summary_statement(user_id: UUID, device_id: Optional[UUID] = None):
     total_cycles = (
         select(func.count(BatteryEquivalentCycle.cycle_id))
@@ -38,8 +79,8 @@ def device_summary_statement(user_id: UUID, device_id: Optional[UUID] = None):
         .scalar_subquery()
     )
 
-    last_soh_energy = (
-        select(BatteryEquivalentCycle.soh_energy_percent)
+    last_cycle_energy = (
+        select(BatteryEquivalentCycle.total_energy_mwh)
         .where(
             BatteryEquivalentCycle.device_id == Device.device_id,
             BatteryEquivalentCycle.is_excluded.is_(False),
@@ -81,6 +122,18 @@ def device_summary_statement(user_id: UUID, device_id: Optional[UUID] = None):
         else_=None,
     )
 
+    current_soh_energy_percent = case(
+        (
+            and_(
+                Device.reference_capacity_mwh.is_not(None),
+                Device.reference_capacity_mwh > 0,
+                last_cycle_energy.is_not(None),
+            ),
+            (last_cycle_energy * 100.0) / Device.reference_capacity_mwh,
+        ),
+        else_=None,
+    )
+
     statement = (
         select(
             Device.device_id,
@@ -89,10 +142,11 @@ def device_summary_statement(user_id: UUID, device_id: Optional[UUID] = None):
             Device.last_seen,
             Device.last_charge_percent,
             Device.last_net_power_mw,
+            Device.last_full_charge_capacity_mwh,
             Device.reference_capacity_mwh,
             Device.reference_capacity_source,
             total_cycles.label("total_cycles"),
-            last_soh_energy.label("current_soh_energy_percent"),
+            current_soh_energy_percent.label("current_soh_energy_percent"),
             has_active_session.label("has_active_session"),
             current_soe_percent.label("current_soe_percent"),
             current_soh_capacity_percent.label("current_soh_capacity_percent"),
@@ -115,6 +169,7 @@ def build_device_info(device_row: Any) -> DeviceInfo:
         last_seen=device_row["last_seen"],
         current_charge_percent=_round(device_row["last_charge_percent"], 2),
         current_net_power_mw=device_row["last_net_power_mw"],
+        current_full_charge_capacity_mwh=device_row["last_full_charge_capacity_mwh"],
         current_soe_percent=_round(device_row["current_soe_percent"], 4),
         current_soh_capacity_percent=_round(device_row["current_soh_capacity_percent"], 4),
         current_soh_energy_percent=_round(device_row["current_soh_energy_percent"], 4),
@@ -167,7 +222,25 @@ def build_session_info(battery_session: BatterySession) -> SessionInfo:
     )
 
 
-def build_cycle_info(cycle: BatteryEquivalentCycle) -> CycleInfo:
+def build_cycle_info(
+    cycle: BatteryEquivalentCycle,
+    current_reference_capacity_mwh: Optional[int] = None,
+) -> CycleInfo:
+    effective_reference_capacity_mwh = _resolve_reference_capacity(
+        current_reference_capacity_mwh,
+        cycle.reference_capacity_mwh_used,
+    )
+    (
+        soh_capacity_percent,
+        degradation_capacity_percent,
+        soh_energy_percent,
+        degradation_energy_percent,
+    ) = _compute_cycle_health_metrics(
+        reference_capacity_mwh=effective_reference_capacity_mwh,
+        full_charge_capacity_mwh_at_cycle_end=cycle.full_charge_capacity_mwh_at_cycle_end,
+        total_energy_mwh=cycle.total_energy_mwh,
+    )
+
     return CycleInfo(
         cycle_id=str(cycle.cycle_id),
         device_id=str(cycle.device_id),
@@ -180,22 +253,42 @@ def build_cycle_info(cycle: BatteryEquivalentCycle) -> CycleInfo:
         avg_load_mw=_round(cycle.avg_load_mw, 4),
         reference_capacity_mwh_used=cycle.reference_capacity_mwh_used,
         full_charge_capacity_mwh_at_cycle_end=cycle.full_charge_capacity_mwh_at_cycle_end,
-        soh_capacity_percent=_round(cycle.soh_capacity_percent, 4),
-        degradation_capacity_percent=_round(cycle.degradation_capacity_percent, 4),
-        soh_energy_percent=_round(cycle.soh_energy_percent, 4),
-        degradation_energy_percent=_round(cycle.degradation_energy_percent, 4),
+        soh_capacity_percent=soh_capacity_percent,
+        degradation_capacity_percent=degradation_capacity_percent,
+        soh_energy_percent=soh_energy_percent,
+        degradation_energy_percent=degradation_energy_percent,
         is_excluded=cycle.is_excluded,
         excluded_at=cycle.excluded_at,
         created_at=cycle.created_at,
     )
 
 
-def build_capacity_history_point(cycle: BatteryEquivalentCycle) -> CapacityHistoryPoint:
+def build_capacity_history_point(
+    cycle: BatteryEquivalentCycle,
+    current_reference_capacity_mwh: Optional[int] = None,
+) -> CapacityHistoryPoint:
+    effective_reference_capacity_mwh = _resolve_reference_capacity(
+        current_reference_capacity_mwh,
+        cycle.reference_capacity_mwh_used,
+    )
+    (
+        soh_capacity_percent,
+        degradation_capacity_percent,
+        soh_energy_percent,
+        degradation_energy_percent,
+    ) = _compute_cycle_health_metrics(
+        reference_capacity_mwh=effective_reference_capacity_mwh,
+        full_charge_capacity_mwh_at_cycle_end=cycle.full_charge_capacity_mwh_at_cycle_end,
+        total_energy_mwh=cycle.total_energy_mwh,
+    )
+
     return CapacityHistoryPoint(
         recorded_at=cycle.ended_at_client,
         full_charge_capacity_mwh=cycle.full_charge_capacity_mwh_at_cycle_end,
-        soh_capacity_percent=_round(cycle.soh_capacity_percent, 4),
-        soh_energy_percent=_round(cycle.soh_energy_percent, 4),
-        degradation_capacity_percent=_round(cycle.degradation_capacity_percent, 4),
-        degradation_energy_percent=_round(cycle.degradation_energy_percent, 4),
+        total_energy_mwh=_round(cycle.total_energy_mwh, 4),
+        reference_capacity_mwh_used=cycle.reference_capacity_mwh_used,
+        soh_capacity_percent=soh_capacity_percent,
+        soh_energy_percent=soh_energy_percent,
+        degradation_capacity_percent=degradation_capacity_percent,
+        degradation_energy_percent=degradation_energy_percent,
     )

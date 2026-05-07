@@ -9,6 +9,9 @@ from app.db.models import BatteryEquivalentCycle, BatterySession, Device
 from app.services.battery_math import avg_load_mw
 
 
+ELIGIBLE_CYCLE_SESSION_STATUSES = ("completed", "interrupted")
+
+
 def ensure_reference_capacity(device: Device, fallback_energy_mwh: float) -> int:
     if device.reference_capacity_mwh is not None and device.reference_capacity_mwh > 0:
         return device.reference_capacity_mwh
@@ -33,7 +36,7 @@ async def create_equivalent_cycles(
             select(BatterySession)
             .where(
                 BatterySession.device_id == device.device_id,
-                BatterySession.status == "completed",
+                BatterySession.status.in_(ELIGIBLE_CYCLE_SESSION_STATUSES),
                 BatterySession.equivalent_cycle_id.is_(None),
                 BatterySession.discharge_delta_percent > 0,
             )

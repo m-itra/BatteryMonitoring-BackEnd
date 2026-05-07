@@ -231,3 +231,30 @@ class TestSubmitBatteryBatch:
         )
 
         assert response.status_code == 422
+
+    def test_zero_reference_capacity_is_forwarded_to_processing_service(self, client):
+        body = {
+            **VALID_BATCH_BODY,
+            "reference_capacity_mwh": 0,
+        }
+        with patch("app.routes.battery.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response(
+                {
+                    "status": "ok",
+                    "device_id": VALID_BATCH_BODY["device_id"],
+                    "processed_samples": 1,
+                    "duplicate_samples": 0,
+                    "completed_sessions": 0,
+                    "completed_cycles": 0,
+                }
+            )
+            response = client.post(
+                "/api/battery/logs/batch",
+                json=body,
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        forwarded_body = mock_proxy.call_args[1]["body"]
+        assert b"reference_capacity_mwh" in forwarded_body
+        assert b"0" in forwarded_body

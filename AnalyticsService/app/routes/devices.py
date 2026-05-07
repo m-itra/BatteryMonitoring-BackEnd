@@ -17,6 +17,17 @@ from app.models import DeviceAnalyticsResponse, UpdateDeviceRequest
 router = APIRouter()
 
 
+def _should_use_design_capacity(
+    design_capacity_mwh: int | None,
+    full_charge_capacity_mwh: int | None,
+) -> bool:
+    return (
+        design_capacity_mwh is not None
+        and full_charge_capacity_mwh is not None
+        and design_capacity_mwh >= full_charge_capacity_mwh
+    )
+
+
 @router.get("/devices")
 async def get_devices(x_user_id: str = Header(..., alias="X-User-Id")):
     user_id = parse_uuid_or_400(x_user_id, "X-User-Id")
@@ -82,8 +93,14 @@ async def get_device_analytics(
             device=build_device_info(device_row),
             active_session=build_active_session_info(active_session),
             recent_sessions=[build_session_info(battery_session) for battery_session in sessions],
-            cycles=[build_cycle_info(cycle) for cycle in cycles],
-            capacity_history=[build_capacity_history_point(cycle) for cycle in active_cycles],
+            cycles=[
+                build_cycle_info(cycle, device_row["reference_capacity_mwh"])
+                for cycle in cycles
+            ],
+            capacity_history=[
+                build_capacity_history_point(cycle, device_row["reference_capacity_mwh"])
+                for cycle in active_cycles
+            ],
         )
 
 
@@ -109,10 +126,31 @@ async def update_device(
             if device is None:
                 raise HTTPException(status_code=404, detail="Device not found")
 
-            device.device_name = data.device_name
+            if data.device_name is not None:
+                device.device_name = data.device_name
+
+            if data.reference_capacity_mwh is not None:
+                if data.reference_capacity_mwh > 0:
+                    device.reference_capacity_mwh = data.reference_capacity_mwh
+                    device.reference_capacity_source = "user"
+                else:
+                    device.reference_capacity_mwh = None
+                    device.reference_capacity_source = None
+                    if _should_use_design_capacity(
+                        device.last_design_capacity_mwh,
+                        device.last_full_charge_capacity_mwh,
+                    ):
+                        device.reference_capacity_mwh = device.last_design_capacity_mwh
+                        device.reference_capacity_source = "design"
             await session.commit()
 
-            return {"status": "updated", "device_id": device_id, "device_name": data.device_name}
+            return {
+                "status": "updated",
+                "device_id": device_id,
+                "device_name": device.device_name,
+                "reference_capacity_mwh": device.reference_capacity_mwh,
+                "reference_capacity_source": device.reference_capacity_source,
+            }
         except HTTPException:
             await session.rollback()
             raise

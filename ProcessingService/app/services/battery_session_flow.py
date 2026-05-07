@@ -82,11 +82,12 @@ async def interrupt_stale_session_if_needed(
     session: AsyncSession,
     active_session: Optional[BatteryActiveSession],
     *,
+    device: Device,
     received_at: datetime,
     sample: BatterySample,
-) -> Optional[BatteryActiveSession]:
+) -> tuple[Optional[BatteryActiveSession], int]:
     if active_session is None:
-        return None
+        return None, 0
 
     client_gap_seconds = max(
         (sample.client_time - active_session.last_client_time).total_seconds(),
@@ -100,13 +101,13 @@ async def interrupt_stale_session_if_needed(
     boot_changed = sample.boot_session_id != active_session.boot_session_id
 
     if not session_is_stale and not boot_changed:
-        return active_session
+        return active_session, 0
 
     if active_session.pending_transition == "start_candidate":
         await delete_active_session(session, active_session)
-        return None
+        return None, 0
 
-    await close_active_session(
+    saved_session = await close_active_session(
         session,
         active_session,
         status="interrupted",
@@ -114,7 +115,11 @@ async def interrupt_stale_session_if_needed(
         ended_at_server=active_session.last_server_received_at,
         end_charge_percent=active_session.current_charge_percent,
     )
-    return None
+    if saved_session is None:
+        return None, 0
+
+    completed_cycles = await create_equivalent_cycles(session, device)
+    return None, completed_cycles
 
 
 async def handle_start_candidate(

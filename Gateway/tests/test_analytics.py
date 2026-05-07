@@ -355,6 +355,30 @@ class TestUpdateDevice:
         body_bytes = mock_proxy.call_args[1]["body"]
         assert b"Renamed" in body_bytes
 
+    def test_reference_capacity_can_be_updated_without_device_name(self, client):
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response({})
+            response = client.put(
+                f"/api/analytics/devices/{DEVICE_ID}",
+                json={"reference_capacity_mwh": 0},
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+
+    def test_body_contains_reference_capacity(self, client):
+        with patch("app.routes.analytics.proxy_request", new_callable=AsyncMock) as mock_proxy:
+            mock_proxy.return_value = _mock_response({})
+            client.put(
+                f"/api/analytics/devices/{DEVICE_ID}",
+                json={"reference_capacity_mwh": 0},
+                headers=AUTH_HEADER,
+            )
+
+        body_bytes = mock_proxy.call_args[1]["body"]
+        assert b"reference_capacity_mwh" in body_bytes
+        assert b"0" in body_bytes
+
     def test_missing_body_returns_422(self, client):
         response = client.put(
             f"/api/analytics/devices/{DEVICE_ID}",

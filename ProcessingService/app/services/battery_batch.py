@@ -32,12 +32,14 @@ async def process_battery_batch(
             result.duplicate_samples += 1
             continue
 
-        active_session = await interrupt_stale_session_if_needed(
+        active_session, completed_cycles = await interrupt_stale_session_if_needed(
             session,
             active_session,
+            device=device,
             received_at=received_at,
             sample=sample,
         )
+        result.completed_cycles += completed_cycles
 
         if active_session is None:
             if not sample.ac_connected:

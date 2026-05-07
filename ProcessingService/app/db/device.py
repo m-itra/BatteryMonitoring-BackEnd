@@ -16,6 +16,14 @@ def parse_uuid(value: str) -> Optional[UUID]:
         return None
 
 
+def normalize_reference_capacity(
+    reference_capacity_mwh: Optional[int],
+) -> Optional[int]:
+    if reference_capacity_mwh is None:
+        return None
+    return reference_capacity_mwh if reference_capacity_mwh > 0 else 0
+
+
 async def create_device(
     session: AsyncSession,
     device_id: str,
@@ -24,13 +32,22 @@ async def create_device(
     battery_id: Optional[str] = None,
     reference_capacity_mwh: Optional[int] = None,
 ) -> Device:
+    normalized_reference_capacity_mwh = normalize_reference_capacity(reference_capacity_mwh)
     device = Device(
         device_id=UUID(device_id),
         user_id=UUID(user_id),
         device_name=device_name,
         battery_id=battery_id,
-        reference_capacity_mwh=reference_capacity_mwh,
-        reference_capacity_source="user" if reference_capacity_mwh is not None else None,
+        reference_capacity_mwh=(
+            normalized_reference_capacity_mwh
+            if normalized_reference_capacity_mwh is not None and normalized_reference_capacity_mwh > 0
+            else None
+        ),
+        reference_capacity_source=(
+            "user"
+            if normalized_reference_capacity_mwh is not None and normalized_reference_capacity_mwh > 0
+            else None
+        ),
     )
     session.add(device)
     await session.flush()
@@ -101,8 +118,16 @@ def update_device_reference_capacity(
     full_charge_capacity_mwh: Optional[int],
 ) -> None:
     if requested_reference_capacity_mwh is not None:
-        device.reference_capacity_mwh = requested_reference_capacity_mwh
-        device.reference_capacity_source = "user"
+        if requested_reference_capacity_mwh > 0:
+            device.reference_capacity_mwh = requested_reference_capacity_mwh
+            device.reference_capacity_source = "user"
+            return
+
+        device.reference_capacity_mwh = None
+        device.reference_capacity_source = None
+        if _should_use_design_capacity(design_capacity_mwh, full_charge_capacity_mwh):
+            device.reference_capacity_mwh = design_capacity_mwh
+            device.reference_capacity_source = "design"
         return
 
     if device.reference_capacity_source == "user" and device.reference_capacity_mwh is not None:
@@ -132,6 +157,7 @@ def update_device_snapshot(
     device.last_is_charging = sample.is_charging
     device.last_charge_percent = sample.charge_percent
     device.last_full_charge_capacity_mwh = sample.full_charge_capacity_mwh
+    device.last_design_capacity_mwh = sample.design_capacity_mwh
     device.last_remaining_capacity_mwh = sample.remaining_capacity_mwh
     device.last_net_power_mw = sample.net_power_mw
 

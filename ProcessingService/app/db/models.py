@@ -33,6 +33,7 @@ class Device(Base):
     last_is_charging: Mapped[Optional[bool]] = mapped_column(Boolean)
     last_charge_percent: Mapped[Optional[float]] = mapped_column(Float)
     last_full_charge_capacity_mwh: Mapped[Optional[int]] = mapped_column(Integer)
+    last_design_capacity_mwh: Mapped[Optional[int]] = mapped_column(Integer)
     last_remaining_capacity_mwh: Mapped[Optional[int]] = mapped_column(Integer)
     last_net_power_mw: Mapped[Optional[int]] = mapped_column(Integer)
     reference_capacity_mwh: Mapped[Optional[int]] = mapped_column(Integer)

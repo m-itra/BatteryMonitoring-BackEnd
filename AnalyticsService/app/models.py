@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, List, Optional
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, StringConstraints, model_validator
 
 NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
@@ -13,6 +13,7 @@ class DeviceInfo(BaseModel):
     last_seen: datetime
     current_charge_percent: Optional[float] = None
     current_net_power_mw: Optional[int] = None
+    current_full_charge_capacity_mwh: Optional[int] = None
     current_soe_percent: Optional[float] = None
     current_soh_capacity_percent: Optional[float] = None
     current_soh_energy_percent: Optional[float] = None
@@ -94,6 +95,8 @@ class CycleDeletionResponse(BaseModel):
 class CapacityHistoryPoint(BaseModel):
     recorded_at: datetime
     full_charge_capacity_mwh: Optional[int] = None
+    total_energy_mwh: Optional[float] = None
+    reference_capacity_mwh_used: Optional[int] = None
     soh_capacity_percent: Optional[float] = None
     soh_energy_percent: Optional[float] = None
     degradation_capacity_percent: Optional[float] = None
@@ -101,7 +104,14 @@ class CapacityHistoryPoint(BaseModel):
 
 
 class UpdateDeviceRequest(BaseModel):
-    device_name: NonEmptyStr
+    device_name: Optional[NonEmptyStr] = None
+    reference_capacity_mwh: Optional[int] = None
+
+    @model_validator(mode="after")
+    def validate_has_updatable_fields(self):
+        if self.device_name is None and self.reference_capacity_mwh is None:
+            raise ValueError("device_name or reference_capacity_mwh is required")
+        return self
 
 
 class AnalyticsDataResponse(BaseModel):

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import func, select
 
 from app.db.connection import get_db_session
-from app.db.models import BatteryEquivalentCycle, BatterySession
+from app.db.models import BatteryEquivalentCycle, BatterySession, Device
 from app.db.query_helpers import build_cycle_info, parse_uuid_or_400
 from app.models import CycleDeletionResponse, CycleExclusionResponse
 
@@ -40,8 +40,26 @@ async def get_cycles(
         result = await session.execute(statement)
         cycles = result.scalars().all()
 
+        device_ids = {cycle.device_id for cycle in cycles}
+        reference_capacity_by_device_id = {}
+        if device_ids:
+            device_result = await session.execute(
+                select(Device.device_id, Device.reference_capacity_mwh)
+                .where(Device.device_id.in_(device_ids))
+            )
+            reference_capacity_by_device_id = {
+                device_id: reference_capacity_mwh
+                for device_id, reference_capacity_mwh in device_result.all()
+            }
+
         return {
-            "cycles": [build_cycle_info(cycle) for cycle in cycles]
+            "cycles": [
+                build_cycle_info(
+                    cycle,
+                    reference_capacity_by_device_id.get(cycle.device_id),
+                )
+                for cycle in cycles
+            ]
         }
 
 

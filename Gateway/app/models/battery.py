@@ -62,7 +62,7 @@ class BatteryLogBatchRequest(BaseModel):
     device_id: Optional[str] = None
     device_name: Optional[str] = None
     battery_id: Optional[str] = None
-    reference_capacity_mwh: Optional[int] = Field(default=None, ge=1)
+    reference_capacity_mwh: Optional[int] = None
     samples: list[BatterySample] = Field(min_length=1)
 
     @field_validator("device_id", "device_name", "battery_id")
