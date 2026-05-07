@@ -1,8 +1,18 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import admin, analytics, auth, battery, health
+from app.routes import admin, analytics, auth, battery, health
+from app.utils.proxy_request import close_proxy_client
 
-app = FastAPI(title="Battery Monitoring API Gateway", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    await close_proxy_client()
+
+
+app = FastAPI(title="Battery Monitoring API Gateway", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
