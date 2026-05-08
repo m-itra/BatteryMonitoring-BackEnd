@@ -8,8 +8,8 @@ services:
       POSTGRES_DB: userdb
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - user-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -28,8 +28,8 @@ services:
       POSTGRES_DB: batterydb
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
-    ports:
-      - "5433:5432"
+    expose:
+      - "5432"
     volumes:
       - battery-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -79,13 +79,16 @@ services:
   user-service:
     build: ../UserService
     container_name: user-service
-    ports:
-      - "8001:8001"
+    expose:
+      - "8001"
+      - "50051"
     environment:
+      ENVIRONMENT: docker
       DATABASE_URL: postgresql://admin:password@user-db:5432/userdb
       JWT_SECRET: my-secret-key-change-in-production
       JWT_ALGORITHM: HS256
       JWT_EXPIRATION_HOURS: 720
+      USER_SERVICE_GRPC_URL: user-service:50051
       PROCESSING_SERVICE_GRPC_URL: processing-service:50052
     depends_on:
       user-db-migrations:
@@ -98,11 +101,15 @@ services:
   processing-service:
     build: ../ProcessingService
     container_name: processing-service
-    ports:
-      - "8002:8002"
+    expose:
+      - "8002"
+      - "50052"
     environment:
+      ENVIRONMENT: docker
       DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
+      MIN_SESSION_DISCHARGE_PERCENT: 1
       USER_SERVICE_GRPC_URL: user-service:50051
+      PROCESSING_SERVICE_GRPC_URL: processing-service:50052
     depends_on:
       battery-db-migrations:
         condition: service_completed_successfully
@@ -114,10 +121,15 @@ services:
   analytics-service:
     build: ../AnalyticsService
     container_name: analytics-service
-    ports:
-      - "8003:8003"
+    expose:
+      - "8003"
     environment:
+      ENVIRONMENT: docker
       DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
+      JWT_SECRET: my-secret-key-change-in-production
+      JWT_ALGORITHM: HS256
+      USER_SERVICE_URL: http://user-service:8001
+      USER_SERVICE_GRPC_URL: user-service:50051
     depends_on:
       battery-db-migrations:
         condition: service_completed_successfully
@@ -129,9 +141,10 @@ services:
   gateway:
     build: ../Gateway
     container_name: gateway
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
+      ENVIRONMENT: docker
       JWT_SECRET: my-secret-key-change-in-production
       JWT_ALGORITHM: HS256
       AUTH_COOKIE_MAX_AGE_SECONDS: 2592000
@@ -142,6 +155,17 @@ services:
       - user-service
       - processing-service
       - analytics-service
+    restart: unless-stopped
+    networks:
+      - battery-network
+
+  frontend:
+    build: ../../BatteryMonitoring-FrontEnd
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
     restart: unless-stopped
     networks:
       - battery-network

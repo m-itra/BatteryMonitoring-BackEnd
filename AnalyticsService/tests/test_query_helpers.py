@@ -50,3 +50,27 @@ def test_build_capacity_history_point_exposes_raw_values_for_frontend_recalculat
     assert point.reference_capacity_mwh_used == 40000
     assert point.soh_capacity_percent == 76.0
     assert point.soh_energy_percent == 72.0
+
+
+def test_build_cycle_info_falls_back_to_cycle_reference_when_current_reference_is_missing():
+    cycle = _make_cycle()
+
+    info = build_cycle_info(cycle, current_reference_capacity_mwh=None)
+
+    assert info.soh_capacity_percent == 95.0
+    assert info.degradation_capacity_percent == 5.0
+    assert info.soh_energy_percent == 90.0
+    assert info.degradation_energy_percent == 10.0
+
+
+def test_build_capacity_history_point_returns_null_health_metrics_without_valid_reference():
+    cycle = _make_cycle()
+    cycle.reference_capacity_mwh_used = 0
+
+    point = build_capacity_history_point(cycle, current_reference_capacity_mwh=None)
+
+    assert point.reference_capacity_mwh_used == 0
+    assert point.soh_capacity_percent is None
+    assert point.soh_energy_percent is None
+    assert point.degradation_capacity_percent is None
+    assert point.degradation_energy_percent is None

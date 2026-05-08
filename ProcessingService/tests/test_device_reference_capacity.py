@@ -25,6 +25,44 @@ def test_non_positive_reference_capacity_switches_device_back_to_design_mode():
     assert device.reference_capacity_source == "design"
 
 
+def test_negative_reference_capacity_also_switches_device_back_to_design_mode():
+    device = Device(
+        device_id=uuid4(),
+        user_id=uuid4(),
+        reference_capacity_mwh=40000,
+        reference_capacity_source="user",
+    )
+
+    update_device_reference_capacity(
+        device,
+        requested_reference_capacity_mwh=-10,
+        design_capacity_mwh=52000,
+        full_charge_capacity_mwh=50000,
+    )
+
+    assert device.reference_capacity_mwh == 52000
+    assert device.reference_capacity_source == "design"
+
+
+def test_non_positive_reference_capacity_clears_user_override_when_design_is_not_usable():
+    device = Device(
+        device_id=uuid4(),
+        user_id=uuid4(),
+        reference_capacity_mwh=40000,
+        reference_capacity_source="user",
+    )
+
+    update_device_reference_capacity(
+        device,
+        requested_reference_capacity_mwh=0,
+        design_capacity_mwh=48000,
+        full_charge_capacity_mwh=50000,
+    )
+
+    assert device.reference_capacity_mwh is None
+    assert device.reference_capacity_source is None
+
+
 def test_update_device_snapshot_stores_last_design_capacity():
     device = Device(
         device_id=uuid4(),

@@ -3,6 +3,7 @@ import threading
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.utils.grpc_user_client import close_user_service_grpc_channel
 from app.routes import submit, health
 from app.grpc_server import serve as serve_grpc
 
@@ -21,6 +22,8 @@ async def lifespan(_app: FastAPI):
         grpc_thread.start()
 
     yield
+
+    await close_user_service_grpc_channel()
 
 
 app = FastAPI(title="ProcessingService", version="1.0.0", lifespan=lifespan)

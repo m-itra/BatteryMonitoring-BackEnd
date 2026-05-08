@@ -6,8 +6,7 @@ import user_service_pb2 as user__service__pb2
 
 
 class UserServiceStub(object):
-    """Сервис для работы с пользователями
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
         """Constructor.
@@ -15,11 +14,6 @@ class UserServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.GetUser = channel.unary_unary(
-                '/user.UserService/GetUser',
-                request_serializer=user__service__pb2.GetUserRequest.SerializeToString,
-                response_deserializer=user__service__pb2.UserResponse.FromString,
-                )
         self.ValidateUser = channel.unary_unary(
                 '/user.UserService/ValidateUser',
                 request_serializer=user__service__pb2.ValidateUserRequest.SerializeToString,
@@ -28,19 +22,10 @@ class UserServiceStub(object):
 
 
 class UserServiceServicer(object):
-    """Сервис для работы с пользователями
-    """
-
-    def GetUser(self, request, context):
-        """Получить информацию о пользователе по ID
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+    """Missing associated documentation comment in .proto file."""
 
     def ValidateUser(self, request, context):
-        """Проверить существование пользователя (для валидации)
-        """
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -48,11 +33,6 @@ class UserServiceServicer(object):
 
 def add_UserServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'GetUser': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetUser,
-                    request_deserializer=user__service__pb2.GetUserRequest.FromString,
-                    response_serializer=user__service__pb2.UserResponse.SerializeToString,
-            ),
             'ValidateUser': grpc.unary_unary_rpc_method_handler(
                     servicer.ValidateUser,
                     request_deserializer=user__service__pb2.ValidateUserRequest.FromString,
@@ -66,25 +46,7 @@ def add_UserServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class UserService(object):
-    """Сервис для работы с пользователями
-    """
-
-    @staticmethod
-    def GetUser(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/user.UserService/GetUser',
-            user__service__pb2.GetUserRequest.SerializeToString,
-            user__service__pb2.UserResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+    """Missing associated documentation comment in .proto file."""
 
     @staticmethod
     def ValidateUser(request,
