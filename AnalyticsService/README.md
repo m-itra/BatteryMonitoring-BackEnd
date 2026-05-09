@@ -36,8 +36,8 @@
 
 Настройки читаются из:
 
-- [AnalyticsService/app/config.py](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/AnalyticsService/app/config.py)
-- [Infrastructure/.env](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/Infrastructure/.env)
+- AnalyticsService/app/config.py
+- Infrastructure/.env
 
 ## Локальный запуск
 ```powershell

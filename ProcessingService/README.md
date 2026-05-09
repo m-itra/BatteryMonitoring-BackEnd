@@ -27,8 +27,8 @@
 
 Proto-источники:
 
-- [Infrastructure/protos/user_service.proto](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/Infrastructure/protos/user_service.proto)
-- [Infrastructure/protos/battery_data_service.proto](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/Infrastructure/protos/battery_data_service.proto)
+- Infrastructure/protos/user_service.proto
+- Infrastructure/protos/battery_data_service.proto
 
 ## Переменные окружения
 
@@ -42,8 +42,8 @@ Proto-источники:
 
 Настройки читаются из:
 
-- [ProcessingService/app/config.py](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/ProcessingService/app/config.py)
-- [Infrastructure/.env](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/Infrastructure/.env)
+- ProcessingService/app/config.py
+- Infrastructure/.env
 
 ## Локальный запуск
 ```powershell

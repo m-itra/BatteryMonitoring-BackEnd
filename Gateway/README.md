@@ -46,8 +46,8 @@
 
 Настройки читаются из:
 
-- [Gateway/app/config.py](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/Gateway/app/config.py)
-- [Infrastructure/.env](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/Infrastructure/.env)
+- Gateway/app/config.py
+- Infrastructure/.env
 
 ## Локальный запуск
 ```powershell

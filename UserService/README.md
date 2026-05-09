@@ -32,7 +32,7 @@
 
 Proto-источник:
 
-- [Infrastructure/protos/user_service.proto](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/Infrastructure/protos/user_service.proto)
+- Infrastructure/protos/user_service.proto
 
 ## Переменные окружения
 
@@ -48,8 +48,8 @@ Proto-источник:
 
 Настройки читаются из:
 
-- [UserService/app/config.py](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/UserService/app/config.py)
-- [Infrastructure/.env](C:/Users/mitra/My/НГТУ/4 курс/ВКР/BatteryMonitoring/BatteryMonitoring-BackEnd/Infrastructure/.env)
+- UserService/app/config.py
+- Infrastructure/.env
 
 ## Локальный запуск
 ```powershell
