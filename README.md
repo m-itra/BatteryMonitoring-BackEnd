@@ -21,16 +21,9 @@ BatteryMonitoring состоит из нескольких сервисов:
 ```powershell
 docker compose -f Infrastructure/docker-compose.yml up -d --build
 ```
+Для успешной сборки и запуска рядом с этим репозиторием должна находиться папка [BatteryMonitoring-FrontEnd](https://github.com/m-itra/BatteryMonitoring-FrontEnd)
+
 После запуска приложение будет доступно по адресу `http://localhost:3000`.
-
-
-### Поднять только backend
-
-Если фронтенд-репозиторий не нужен или ещё не лежит рядом, можно поднять только backend-сервисы:
-
-```powershell
-docker compose -f Infrastructure/docker-compose.yml up -d --build user-db battery-db user-db-migrations battery-db-migrations user-service processing-service analytics-service gateway
-```
 
 ## Локальный запуск без Docker
 
