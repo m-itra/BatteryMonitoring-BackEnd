@@ -99,6 +99,30 @@ python -m alembic -c migrations/user-db/alembic.ini revision --autogenerate -m "
 python -m alembic -c migrations/battery-db/alembic.ini revision --autogenerate -m "message"
 ```
 
+### Назначить пользователю роль admin в Docker
+Открыть `psql` внутри контейнера `user-db`:
+
+```powershell
+docker exec -it user-db psql -U admin -d userdb
+```
+
+Посмотреть пользователей:
+
+```sql
+SELECT user_id, email, role
+FROM users;
+```
+
+Назначить роль `admin` пользователю по `user_id`:
+
+```sql
+UPDATE users
+SET role = 'admin'
+WHERE user_id = 'PUT-USER-ID-HERE';
+```
+
+После изменения роли пользователю нужно войти в систему заново, чтобы новый `role` попал в JWT-токен.
+
 ## gRPC proto и генерация stubs
 
 Источники истины для gRPC:
