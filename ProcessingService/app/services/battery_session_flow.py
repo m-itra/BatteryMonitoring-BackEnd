@@ -19,6 +19,16 @@ def should_persist_session(discharge_delta_percent: float) -> bool:
     return discharge_delta_percent >= MIN_SESSION_DISCHARGE_PERCENT
 
 
+def has_sample_sequence_gap(
+    active_session: BatteryActiveSession,
+    sample: BatterySample,
+) -> bool:
+    if sample.boot_session_id != active_session.boot_session_id:
+        return False
+
+    return sample.sample_seq > active_session.last_sample_seq + 1
+
+
 async def get_active_session(
     session: AsyncSession,
     device_id: UUID,
@@ -99,8 +109,9 @@ async def interrupt_stale_session_if_needed(
     )
     session_is_stale = client_gap_seconds > INTERRUPTED_TIMEOUT_SECONDS
     boot_changed = sample.boot_session_id != active_session.boot_session_id
+    sequence_gap_detected = has_sample_sequence_gap(active_session, sample)
 
-    if not session_is_stale and not boot_changed:
+    if not session_is_stale and not boot_changed and not sequence_gap_detected:
         return active_session, 0
 
     if active_session.pending_transition == "start_candidate":
