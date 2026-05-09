@@ -1,39 +1,38 @@
-
 services:
-  # База данных пользователей
+  # User database
   user-db:
     image: postgres:15
     container_name: user-db
     environment:
-      POSTGRES_DB: userdb
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${DOCKER_USER_DB_NAME}
+      POSTGRES_USER: ${DOCKER_USER_DB_USER}
+      POSTGRES_PASSWORD: ${DOCKER_USER_DB_PASSWORD}
     expose:
       - "5432"
     volumes:
       - user-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d userdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${DOCKER_USER_DB_USER} -d ${DOCKER_USER_DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - battery-network
 
-  # База данных батареи
+  # Battery database
   battery-db:
     image: postgres:15
     container_name: battery-db
     environment:
-      POSTGRES_DB: batterydb
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${DOCKER_BATTERY_DB_NAME}
+      POSTGRES_USER: ${DOCKER_BATTERY_DB_USER}
+      POSTGRES_PASSWORD: ${DOCKER_BATTERY_DB_PASSWORD}
     expose:
       - "5432"
     volumes:
       - battery-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d batterydb"]
+      test: ["CMD-SHELL", "pg_isready -U ${DOCKER_BATTERY_DB_USER} -d ${DOCKER_BATTERY_DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,7 +46,7 @@ services:
     volumes:
       - ..:/workspace
     environment:
-      USER_DATABASE_URL: postgresql://admin:password@user-db:5432/userdb
+      USER_DATABASE_URL: ${DOCKER_USER_DATABASE_URL}
     command: >
       sh -c "pip install --no-cache-dir -r requirements.txt &&
              alembic -c migrations/user-db/alembic.ini upgrade head"
@@ -64,7 +63,7 @@ services:
     volumes:
       - ..:/workspace
     environment:
-      BATTERY_DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
+      BATTERY_DATABASE_URL: ${DOCKER_BATTERY_DATABASE_URL}
     command: >
       sh -c "pip install --no-cache-dir -r requirements.txt &&
              alembic -c migrations/battery-db/alembic.ini upgrade head"
@@ -74,7 +73,6 @@ services:
     networks:
       - battery-network
 
-
   # UserService
   user-service:
     build: ../UserService
@@ -83,20 +81,20 @@ services:
       - "8001"
       - "50051"
     environment:
-      ENVIRONMENT: docker
-      DATABASE_URL: postgresql://admin:password@user-db:5432/userdb
-      JWT_SECRET: my-secret-key-change-in-production
-      JWT_ALGORITHM: HS256
-      JWT_EXPIRATION_HOURS: 720
-      USER_SERVICE_GRPC_URL: user-service:50051
-      PROCESSING_SERVICE_GRPC_URL: processing-service:50052
+      ENVIRONMENT: ${DOCKER_ENVIRONMENT}
+      DATABASE_URL: ${DOCKER_USER_DATABASE_URL}
+      JWT_SECRET: ${DOCKER_JWT_SECRET}
+      JWT_ALGORITHM: ${DOCKER_JWT_ALGORITHM}
+      JWT_EXPIRATION_HOURS: ${DOCKER_JWT_EXPIRATION_HOURS}
+      USER_SERVICE_GRPC_URL: ${DOCKER_USER_SERVICE_GRPC_URL}
+      PROCESSING_SERVICE_GRPC_URL: ${DOCKER_PROCESSING_SERVICE_GRPC_URL}
     depends_on:
       user-db-migrations:
         condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - battery-network
-  
+
   # ProcessingService
   processing-service:
     build: ../ProcessingService
@@ -105,11 +103,11 @@ services:
       - "8002"
       - "50052"
     environment:
-      ENVIRONMENT: docker
-      DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
-      MIN_SESSION_DISCHARGE_PERCENT: 1
-      USER_SERVICE_GRPC_URL: user-service:50051
-      PROCESSING_SERVICE_GRPC_URL: processing-service:50052
+      ENVIRONMENT: ${DOCKER_ENVIRONMENT}
+      DATABASE_URL: ${DOCKER_BATTERY_DATABASE_URL}
+      MIN_SESSION_DISCHARGE_PERCENT: ${DOCKER_MIN_SESSION_DISCHARGE_PERCENT}
+      USER_SERVICE_GRPC_URL: ${DOCKER_USER_SERVICE_GRPC_URL}
+      PROCESSING_SERVICE_GRPC_URL: ${DOCKER_PROCESSING_SERVICE_GRPC_URL}
     depends_on:
       battery-db-migrations:
         condition: service_completed_successfully
@@ -117,19 +115,17 @@ services:
     networks:
       - battery-network
 
-    # AnalyticsService
+  # AnalyticsService
   analytics-service:
     build: ../AnalyticsService
     container_name: analytics-service
     expose:
       - "8003"
     environment:
-      ENVIRONMENT: docker
-      DATABASE_URL: postgresql://admin:password@battery-db:5432/batterydb
-      JWT_SECRET: my-secret-key-change-in-production
-      JWT_ALGORITHM: HS256
-      USER_SERVICE_URL: http://user-service:8001
-      USER_SERVICE_GRPC_URL: user-service:50051
+      ENVIRONMENT: ${DOCKER_ENVIRONMENT}
+      DATABASE_URL: ${DOCKER_BATTERY_DATABASE_URL}
+      JWT_SECRET: ${DOCKER_JWT_SECRET}
+      JWT_ALGORITHM: ${DOCKER_JWT_ALGORITHM}
     depends_on:
       battery-db-migrations:
         condition: service_completed_successfully
@@ -144,13 +140,13 @@ services:
     expose:
       - "8000"
     environment:
-      ENVIRONMENT: docker
-      JWT_SECRET: my-secret-key-change-in-production
-      JWT_ALGORITHM: HS256
-      AUTH_COOKIE_MAX_AGE_SECONDS: 2592000
-      USER_SERVICE_URL: http://user-service:8001
-      PROCESSING_SERVICE_URL: http://processing-service:8002
-      ANALYTICS_SERVICE_URL: http://analytics-service:8003
+      ENVIRONMENT: ${DOCKER_ENVIRONMENT}
+      JWT_SECRET: ${DOCKER_JWT_SECRET}
+      JWT_ALGORITHM: ${DOCKER_JWT_ALGORITHM}
+      AUTH_COOKIE_MAX_AGE_SECONDS: ${DOCKER_AUTH_COOKIE_MAX_AGE_SECONDS}
+      USER_SERVICE_URL: ${DOCKER_USER_SERVICE_URL}
+      PROCESSING_SERVICE_URL: ${DOCKER_PROCESSING_SERVICE_URL}
+      ANALYTICS_SERVICE_URL: ${DOCKER_ANALYTICS_SERVICE_URL}
     depends_on:
       - user-service
       - processing-service

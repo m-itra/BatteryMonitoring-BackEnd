@@ -14,7 +14,7 @@ Run both database migrations from the `Infrastructure` directory:
 .\scripts\run_migrations.ps1
 ```
 
-The script loads `Infrastructure/.env`, creates `userdb` and `batterydb` if they do not exist. For local PostgreSQL, make sure `USER_DATABASE_URL` and `BATTERY_DATABASE_URL` point to the actual local port and credentials.
+The script loads `Infrastructure/.env`, creates `userdb` and `batterydb` if they do not exist. Keep local values in `USER_DATABASE_URL` and `BATTERY_DATABASE_URL`. Docker Compose uses the separate `DOCKER_*` variables from the same file, so local runs and container runs can point at different hosts and credentials without editing `docker-compose.yml`.
 
 Or run one database explicitly:
 
